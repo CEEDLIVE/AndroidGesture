@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">GGesture</string>
+
+    <string name="btn_red">RED</string>
+    <string name="btn_blue">BLUE</string>
+    <string name="btn_green">GREEN</string>
+    <string name="btn_alpha">ALPHA</string>
+</resources>
