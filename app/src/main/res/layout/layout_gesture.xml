@@ -5,9 +5,10 @@
 
     <ImageView
         android:id="@+id/gesture_iv_me"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@drawable/ic_launcher_foreground"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:src="@drawable/ic_hyundai"
+        android:scaleType="matrix"
         />
 
 </LinearLayout>
