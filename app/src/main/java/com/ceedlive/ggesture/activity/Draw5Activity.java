@@ -1,31 +1,24 @@
 package com.ceedlive.ggesture.activity;
 
-import android.graphics.drawable.Animatable;
-import android.graphics.drawable.AnimationDrawable;
+import android.graphics.Matrix;
+import android.graphics.PointF;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.Animation;
-import android.view.animation.AnimationSet;
+import android.view.WindowManager;
 import android.widget.ImageView;
 
-import com.andrognito.patternlockview.PatternLockView;
-import com.andrognito.patternlockview.listener.PatternLockViewListener;
-import com.andrognito.patternlockview.utils.PatternLockUtils;
-import com.andrognito.patternlockview.utils.ResourceUtils;
+import com.ceedlive.ggesture.DrawView;
 import com.ceedlive.ggesture.R;
 
-import java.util.List;
+public class Draw5Activity extends AppCompatActivity {
 
-public class MainActivity extends AppCompatActivity {
-
-    private PatternLockView mPatternLockView;
-    private PatternLockViewListener mPatternLockViewListener;
-
+    private WindowManager mWindowManager;
     private ImageView mImageView;
+    private DrawView mDrawView;
 
     float oldXvalue;
     float oldYvalue;
@@ -35,56 +28,16 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        setContentView(R.layout.activity_main);
-        mPatternLockView = findViewById(R.id.pattern_lock_view);
+        mDrawView = new DrawView(this);
+        setContentView(mDrawView);
 
-//        mPatternLockView.setViewMode(PatternLockView.PatternViewMode.CORRECT);       // Set the current viee more
-//        mPatternLockView.setInStealthMode(false);                                     // Set the pattern in stealth mode (pattern drawing is hidden)
-//        mPatternLockView.setTactileFeedbackEnabled(true);                            // Enables vibration feedback when the pattern is drawn
-//        mPatternLockView.setInputEnabled(false);                                     // Disables any input from the pattern lock view completely
-//
-        mPatternLockView.setDotCount(7);
-//        mPatternLockView.setDotNormalSize((int) ResourceUtils.getDimensionInPx(this, R.dimen.pattern_lock_dot_size));
-//        mPatternLockView.setDotSelectedSize((int) ResourceUtils.getDimensionInPx(this, R.dimen.pattern_lock_dot_selected_size));
-//        mPatternLockView.setPathWidth((int) ResourceUtils.getDimensionInPx(this, R.dimen.pattern_lock_path_width));
-//        mPatternLockView.setAspectRatioEnabled(true);
-//        mPatternLockView.setAspectRatio(PatternLockView.AspectRatio.ASPECT_RATIO_HEIGHT_BIAS);
-        mPatternLockView.setNormalStateColor(ResourceUtils.getColor(this, R.color.white));
-        mPatternLockView.setCorrectStateColor(ResourceUtils.getColor(this, R.color.colorPrimary));
-        mPatternLockView.setWrongStateColor(ResourceUtils.getColor(this, R.color.pomegranate));
-        mPatternLockView.setDotAnimationDuration(150);
-//        mPatternLockView.setPathEndAnimationDuration(100);
-
-
-        mPatternLockViewListener = new PatternLockViewListener() {
-            @Override
-            public void onStarted() {
-                Log.e(getClass().getName(), "Pattern drawing started");
-            }
-
-            @Override
-            public void onProgress(List<PatternLockView.Dot> progressPattern) {
-                Log.e(getClass().getName(), "Pattern progress: " +
-                        PatternLockUtils.patternToString(mPatternLockView, progressPattern));
-            }
-
-            @Override
-            public void onComplete(List<PatternLockView.Dot> pattern) {
-                Log.e(getClass().getName(), "Pattern complete: " +
-                        PatternLockUtils.patternToString(mPatternLockView, pattern));
-            }
-
-            @Override
-            public void onCleared() {
-                Log.e(getClass().getName(), "Pattern has been cleared");
-            }
-        };
-
-        mPatternLockView.addPatternLockListener(mPatternLockViewListener);
-
-        initWindowLayout();
+//        initialize();
+//        initWindowLayout();
     }
 
+    private void initialize() {
+        mWindowManager = getWindowManager();
+    }
 
     /**
      * Window View 를 초기화 한다. X, Y 좌표는 0, 0으로 지정한다.
@@ -161,6 +114,69 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
         });
+    }
+
+    // TEST 1
+    private void limitDrag(Matrix m, ImageView view, int imageWidth, int imageHeight) {
+        float[] values = new float[9];
+        m.getValues(values);
+        float[] orig = new float[] {0,0, imageWidth, imageHeight};
+        float[] trans = new float[4];
+        m.mapPoints(trans, orig);
+
+        float transLeft = trans[0];
+        float transTop = trans[1];
+        float transRight = trans[2];
+        float transBottom = trans[3];
+        float transWidth = transRight - transLeft;
+        float transHeight = transBottom - transTop;
+
+        float xOffset = 0;
+        if (transWidth > view.getWidth()) {
+            if (transLeft > 0) {
+                xOffset = -transLeft;
+            } else if (transRight < view.getWidth()) {
+                xOffset = view.getWidth() - transRight;
+            }
+        } else {
+            if (transLeft < 0) {
+                xOffset = -transLeft;
+            } else if (transRight > view.getWidth()) {
+                xOffset = -(transRight - view.getWidth());
+            }
+        }
+
+        float yOffset = 0;
+        if (transHeight > view.getHeight()) {
+            if (transTop > 0) {
+                yOffset = -transTop;
+            } else if (transBottom < view.getHeight()) {
+                yOffset = view.getHeight() - transBottom;
+            }
+        } else {
+            if (transTop < 0) {
+                yOffset = -transTop;
+            } else if (transBottom > view.getHeight()) {
+                yOffset = -(transBottom - view.getHeight());
+            }
+        }
+
+        float transX = values[Matrix.MTRANS_X];
+        float transY = values[Matrix.MTRANS_Y];
+
+        values[Matrix.MTRANS_X] = transX + xOffset;
+        values[Matrix.MTRANS_Y] = transY + yOffset;
+        m.setValues(values);
+    }
+
+    private float spacing(MotionEvent motionEvent) {
+        float x = motionEvent.getX(0) - motionEvent.getX(1);
+        float y = motionEvent.getY(0) - motionEvent.getY(1);
+        return (float) Math.sqrt(x * x + y * y);
+    }
+
+    private void midPoint(PointF point, MotionEvent event) {
+        point.set((event.getX(0) + event.getX(1)) / 2, (event.getY(0) + event.getY(1)) / 2);
     }
 
 }
