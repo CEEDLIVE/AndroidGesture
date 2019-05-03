@@ -64,12 +64,70 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onProgress(List<PatternLockView.Dot> progressPattern) {
+
+                int left =  mPatternLockView.getLeft();
+                int bottom = mPatternLockView.getBottom();
+                int height = mPatternLockView.getHeight();
+                float x1 = mPatternLockView.getX();
+                float y1 = mPatternLockView.getY();
+
+                List<View> viewList = mPatternLockView.getTouchables();
+
+                Log.d("onProgress", "start");
+                Log.e("onProgress", "    left: " + left + "");
+                Log.e("onProgress", "    bottom: " + bottom + "");
+                Log.e("onProgress", "    height: " + height + "");
+                Log.e("onProgress", "    x1: " + x1 + "");
+                Log.e("onProgress", "    y1: " + y1 + "");
+
+                mPatternLockView.getMatrix();
+                for (PatternLockView.Dot dot : progressPattern) {
+                    int row = dot.getRow();
+                    int column = dot.getColumn();
+                    int id = dot.getId();
+                    Log.e("onProgress", "    row: " + row + "");
+                    Log.e("onProgress", "    column: " + column + "");
+                    Log.e("onProgress", "    id: " + y1 + "");
+                }
+
                 Log.e(getClass().getName(), "Pattern progress: " +
                         PatternLockUtils.patternToString(mPatternLockView, progressPattern));
             }
 
             @Override
             public void onComplete(List<PatternLockView.Dot> pattern) {
+
+                int left =  mPatternLockView.getLeft();
+                int bottom = mPatternLockView.getBottom();
+                int height = mPatternLockView.getHeight();
+                float x1 = mPatternLockView.getX();
+                float y1 = mPatternLockView.getY();
+
+                Log.d("onComplete", "start");
+                Log.e("onComplete", "    left: " + left + "");
+                Log.e("onComplete", "    bottom: " + bottom + "");
+                Log.e("onComplete", "    height: " + height + "");
+                Log.e("onComplete", "    x1: " + x1 + "");
+                Log.e("onComplete", "    y1: " + y1 + "");
+
+                List<View> viewList = mPatternLockView.getTouchables();
+                for (View v : viewList) {
+
+                    int[] location = new int[2];
+                    v.getLocationInWindow(location);
+                    int x = location[0];
+                    int y = location[1];
+
+                    Log.e("onComplete x", x + "");
+                    Log.e("onComplete y", y + "");
+
+                    final int realRight = location[0] + v.getWidth();
+                    final int realBottom = location[1] + v.getHeight();
+
+                    Log.e("onComplete realRight", realRight + "");
+                    Log.e("onComplete realBottom", realBottom + "");
+                }
+
                 Log.e(getClass().getName(), "Pattern complete: " +
                         PatternLockUtils.patternToString(mPatternLockView, pattern));
             }
