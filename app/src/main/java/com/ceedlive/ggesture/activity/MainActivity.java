@@ -1,15 +1,10 @@
 package com.ceedlive.ggesture.activity;
 
-import android.graphics.drawable.Animatable;
-import android.graphics.drawable.AnimationDrawable;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.Animation;
-import android.view.animation.AnimationSet;
 import android.widget.ImageView;
 
 import com.andrognito.patternlockview.PatternLockView;
@@ -19,6 +14,8 @@ import com.andrognito.patternlockview.utils.ResourceUtils;
 import com.ceedlive.ggesture.R;
 
 import java.util.List;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
 

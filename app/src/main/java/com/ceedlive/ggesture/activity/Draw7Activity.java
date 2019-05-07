@@ -1,15 +1,9 @@
 package com.ceedlive.ggesture.activity;
 
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.Path;
-import android.graphics.Rect;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -17,6 +11,8 @@ import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.ceedlive.ggesture.R;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 public class Draw7Activity extends AppCompatActivity {
 
@@ -98,6 +94,8 @@ public class Draw7Activity extends AppCompatActivity {
                 return true;
             }
         });
+
     }
+
 
 }

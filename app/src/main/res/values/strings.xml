@@ -5,4 +5,8 @@
     <string name="btn_blue">BLUE</string>
     <string name="btn_green">GREEN</string>
     <string name="btn_alpha">ALPHA</string>
+    <string name="all_text_confirm">all text confirm</string>
+    <string name="menu_change_app_settings_first_timetable_time">menu_change_app_settings_first_timetable_time</string>
+    <string name="update_content">update_content</string>
+    <string name="congratulation_to_update">congratulation_to_update</string>
 </resources>

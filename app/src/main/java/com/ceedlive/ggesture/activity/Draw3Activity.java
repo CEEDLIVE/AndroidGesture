@@ -3,7 +3,6 @@ package com.ceedlive.ggesture.activity;
 import android.graphics.Matrix;
 import android.graphics.PointF;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -12,6 +11,8 @@ import android.view.WindowManager;
 import android.widget.ImageView;
 
 import com.ceedlive.ggesture.R;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 public class Draw3Activity extends AppCompatActivity {
 

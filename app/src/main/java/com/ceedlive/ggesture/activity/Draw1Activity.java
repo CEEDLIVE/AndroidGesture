@@ -3,7 +3,6 @@ package com.ceedlive.ggesture.activity;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -12,6 +11,8 @@ import android.widget.LinearLayout;
 
 import com.ceedlive.ggesture.DrawLine;
 import com.ceedlive.ggesture.R;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 public class Draw1Activity extends AppCompatActivity {
 
