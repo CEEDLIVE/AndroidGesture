@@ -7,24 +7,19 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
-import android.os.Build;
 import android.util.Log;
 import android.view.Display;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.ImageView;
-import android.widget.TextView;
 import android.widget.Toast;
-
-import java.util.ArrayList;
 
 /**
  * 연속된 직선들을 n 방향으로 구간을 나누어
  * 360도 중에서 해당 구간으로 뻗어 나가는 직선을 인식하여 번호를 부여함으로써
  * 미리 정의된 연속된 번호들과 일치 하는가를 통해 사용자의 입력을 받아 들이는 방식
  */
-public class DrawView extends View {
+public class DrawView4 extends View {
 
 	static Context c;
 
@@ -55,7 +50,7 @@ public class DrawView extends View {
 
 
 
-	public DrawView(Context context){
+	public DrawView4(Context context){
 		super(context);
 		setFocusable(true);
 
@@ -70,7 +65,7 @@ public class DrawView extends View {
 		int[] colors = createColors();
 
 //		mViewBitmap = Bitmap.createBitmap(mWidth, mHeight, Bitmap.Config.ARGB_8888);
-		mViewBitmap.setPixels(colors, 0, mWidth, 0, 0, mWidth, mHeight);
+//		mViewBitmap.setPixels(colors, 0, mWidth, 0, 0, mWidth, mHeight);
 
 
 

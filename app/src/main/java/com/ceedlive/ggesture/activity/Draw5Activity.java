@@ -1,5 +1,7 @@
 package com.ceedlive.ggesture.activity;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.graphics.PointF;
 import android.os.Bundle;
@@ -23,12 +25,16 @@ public class Draw5Activity extends AppCompatActivity {
     float oldXvalue;
     float oldYvalue;
 
+    private Bitmap mBitmap;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+//        mBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.logo_genesis_g);
         mDrawView = new DrawView(this);
+
         setContentView(mDrawView);
 
 //        initialize();
