@@ -65,6 +65,8 @@ public class DrawView10 extends RelativeLayout {
 	int mWidth;
 	int mHeight;
 
+	private Rect mRect;
+
 
 	public DrawView10(Context context) {
 		super(context);
@@ -105,6 +107,7 @@ public class DrawView10 extends RelativeLayout {
 		imgView.setImageResource(R.drawable.ic_car_24);
 		imgView.setX(mWidth);
 		imgView.setY(50);
+		imgView.setColorFilter(getContext().getResources().getColor(R.color.white));
 
 		setBackgroundColor(Color.WHITE);
 
@@ -114,6 +117,9 @@ public class DrawView10 extends RelativeLayout {
 		
 		pt = new Paint();
 		tv = new TextView(this.getContext());
+
+//		mRect = new Rect(100, 100, 300, 180); // 사각형 영역을 만든다
+		mRect = new Rect(mWidth - 130, 90, mWidth + 30, 150); // 사각형 영역을 만든다
 	}
 	
 	@Override
@@ -123,6 +129,32 @@ public class DrawView10 extends RelativeLayout {
 
 		mPaint = new Paint();
 		mPaint.setFilterBitmap(true);
+
+
+
+
+		float canvasRate = (float) canvas.getWidth() / canvas.getHeight();
+		float bitmapRate = (float) bitmap.getWidth() / bitmap.getHeight();
+
+
+		float width, height;        // drawn width & height
+		float xStart, yStart;       // start point (left top)
+
+		// calculation process to fit bitmap in canvas
+		if (canvasRate < bitmapRate) { // canvas is vertically long
+			width  = canvas.getWidth();
+			height = width / bitmapRate;
+			xStart = 0;
+			yStart = (canvas.getHeight() - height) / 2;
+		} else { // canvas is horizontally wide
+			height = canvas.getHeight();
+			width  = height * bitmapRate;
+			yStart = 0;
+			xStart = (canvas.getWidth() - width) / 2;
+		}
+
+
+
 
 //		Bitmap bitmapOrg = BitmapFactory.decodeResource(getResources(),R.drawable.logo_genesis_g);
 //		int targetWidth  = bitmapOrg.getWidth() * 2;
@@ -259,8 +291,9 @@ public class DrawView10 extends RelativeLayout {
 //in run method
 //		canvas.drawBitmap(bitmap, null, dstRect, null);
 
-//		float min = (width < height)? width : height;
+		float min = (width < height) ? width : height;
 //		float radius = min * 0.03f;
+		float radius = min * 0.07f;
 
 //		Log.e("min", min + "");
 //		Log.e("radius", radius + "");
@@ -274,6 +307,9 @@ public class DrawView10 extends RelativeLayout {
 //				radius, mPaint);
 //		canvas.drawCircle(xStart + width - radius, yStart + height - radius,
 //				radius, mPaint);
+
+		mPaint.setColor(Color.parseColor("#003300"));
+		canvas.drawRect(mRect, mPaint);
 	}
 
 	@Override
@@ -294,6 +330,14 @@ public class DrawView10 extends RelativeLayout {
 				String msg = ": " + touchedX +" / " + touchedY;
 
 				if ( touchCount == 1 ) {
+
+					if (mRect.contains(touchedX, touchedY)) {
+						Toast.makeText(mContext, "Hit", Toast.LENGTH_SHORT).show();
+					} else {
+						Toast.makeText(mContext, "Miss", Toast.LENGTH_SHORT).show();
+					}
+
+
 					if ( touchedX >= 0 && touchedX < bitmap.getWidth()
 							&& touchedY >= 0 && touchedY < bitmap.getHeight() ) {
 						int pixel = bitmap.getPixel(touchedX, touchedY);
