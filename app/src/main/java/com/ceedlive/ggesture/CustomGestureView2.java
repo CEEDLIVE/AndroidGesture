@@ -28,7 +28,7 @@ import androidx.appcompat.widget.AppCompatImageView;
  * 360도 중에서 해당 구간으로 뻗어 나가는 직선을 인식하여 번호를 부여함으로써
  * 미리 정의된 연속된 번호들과 일치 하는가를 통해 사용자의 입력을 받아 들이는 방식
  */
-public class CustomGestureView extends AppCompatImageView {
+public class CustomGestureView2 extends AppCompatImageView {
 
 	private Paint mPaint;
 
@@ -80,10 +80,10 @@ public class CustomGestureView extends AppCompatImageView {
 
 
 	/**
-	 * Java Code 에서 뷰를 생성 할 때 호출되는 생성자
+     * Java Code 에서 뷰를 생성 할 때 호출되는 생성자
 	 * @param context
 	 */
-	public CustomGestureView(Context context) {
+	public CustomGestureView2(Context context) {
 		super(context);
 		setFocusable(true);
 
@@ -93,11 +93,11 @@ public class CustomGestureView extends AppCompatImageView {
 
 	// you will need the constructor public MyView(Context context, AttributeSet attrs), otherwise you will get an Exception when Android tries to inflate your View.
 	/**
-	 * Java Code 에서 뷰를 생성 할 때 호출되는 생성자
+     * Java Code 에서 뷰를 생성 할 때 호출되는 생성자
 	 * @param context
-	 * @param attrs
+     * @param attrs
 	 */
-	public CustomGestureView(Context context, AttributeSet attrs) {
+	public CustomGestureView2(Context context, AttributeSet attrs) {
 		super(context, attrs);
 		setFocusable(true);
 
@@ -108,12 +108,12 @@ public class CustomGestureView extends AppCompatImageView {
 	// if you add your View from xml and also spcify the android:style attribute like : <com.mypack.MyView style="@styles/MyCustomStyle" />
 	// you will also need the first constructor public MyView(Context context, AttributeSet attrs,int defStyle)
 	/**
-	 * Java Code 에서 뷰를 생성 할 때 호출되는 생성자
+     * Java Code 에서 뷰를 생성 할 때 호출되는 생성자
 	 * @param context
-	 * @param attrs
-	 * @param defStyle
+     * @param attrs
+     * @param defStyle
 	 */
-	public CustomGestureView(Context context, AttributeSet attrs, int defStyle) {
+	public CustomGestureView2(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
 		setFocusable(true);
 
@@ -124,10 +124,12 @@ public class CustomGestureView extends AppCompatImageView {
 
 	public void init_variable() {
 		mPaint = new Paint();// Avoid object allocations during draw/layout operations
+//		mImageViewPointer = new ImageView(mContext);
 
 		mBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.logo_genesis_g);
+
+		setScaleType(ScaleType.CENTER_INSIDE);
 		setImageBitmap(mBitmap);
-//		setScaleType(ImageView.ScaleType.CENTER_INSIDE);
 
 		mDrawable = getDrawable();
 
@@ -147,17 +149,7 @@ public class CustomGestureView extends AppCompatImageView {
 		mHeight = mBitmap.getHeight();
 
 
-		// TEST
-
-		DisplayMetrics metrics = new DisplayMetrics();
-		WindowManager windowManager = (WindowManager) mContext.getSystemService( Context.WINDOW_SERVICE );
-		Display display = windowManager.getDefaultDisplay();
-		display.getMetrics(metrics);
-		float density = metrics.density;
-
-
 		//
-		Log.e("init_variable", "density: " + density);
 
 		Log.e("init_variable", "mDrawableWidth: " + mDrawableWidth);
 		Log.e("init_variable", "mDrawableHeight: " + mDrawableHeight);
@@ -171,11 +163,27 @@ public class CustomGestureView extends AppCompatImageView {
 		Log.e("init_variable", "mWidth: " + mWidth);
 		Log.e("init_variable", "mHeight: " + mHeight);
 
-		Log.e("init_variable", "getPaddingLeft: " + this.getPaddingLeft());
-		Log.e("init_variable", "getPaddingRight: " + this.getPaddingRight());
 
-		Log.e("init_variable", "getPaddingTop: " + this.getPaddingTop());
-		Log.e("init_variable", "getPaddingBottom: " + this.getPaddingBottom());
+//		2019-05-09 18:05:19.314 1717-1717/com.ceedlive.ggesture E/init_variable: mDrawableWidth: 1072
+//		2019-05-09 18:05:19.314 1717-1717/com.ceedlive.ggesture E/init_variable: mDrawableHeight: 872
+//		2019-05-09 18:05:19.314 1717-1717/com.ceedlive.ggesture E/init_variable: mViewWidth: 0
+//		2019-05-09 18:05:19.314 1717-1717/com.ceedlive.ggesture E/init_variable: mViewHeight: 0
+//		2019-05-09 18:05:19.314 1717-1717/com.ceedlive.ggesture E/init_variable: mRealImageWidth: -268
+//		2019-05-09 18:05:19.314 1717-1717/com.ceedlive.ggesture E/init_variable: mRealImageHeight: -218
+//		2019-05-09 18:05:19.314 1717-1717/com.ceedlive.ggesture E/init_variable: mWidth: 1072
+//		2019-05-09 18:05:19.314 1717-1717/com.ceedlive.ggesture E/init_variable: mHeight: 872
+//		2019-05-09 18:05:19.314 1717-1717/com.ceedlive.ggesture E/init_variable: mWidth: 1072
+//		2019-05-09 18:05:19.314 1717-1717/com.ceedlive.ggesture E/init_variable: mHeight: 872
+
+		//
+
+//		mBitmapPointer = BitmapFactory.decodeResource(getResources(), R.drawable.ic_car_24);
+//		mImageViewPointer.setImageBitmap(mBitmapPointer);
+//		mImageViewPointer.setVisibility(View.VISIBLE);
+//		mImageViewPointer.setImageResource(R.drawable.ic_car_24);
+//		mImageViewPointer.setX(mWidth / 2);
+//		mImageViewPointer.setY(mHeight / 2);
+//		mImageViewPointer.setColorFilter(getContext().getResources().getColor(R.color.white));
 
 
 		arVertex1 = new ArrayList<>();
@@ -198,9 +206,6 @@ public class CustomGestureView extends AppCompatImageView {
 
 		mRectFStart = new RectF(circleStartLeft, circleStartTop, circleStartRight, circleStartBottom); // 사각형 영역을 만든다
 		mRectFEnd = new RectF(circleEndLeft, circleEndTop, circleEndRight, circleEndBottom); // 사각형 영역을 만든다.
-
-		mRectFStart = new RectF(mWidth - 100, 0, mWidth - 50, 50); // 사각형 영역을 만든다
-		mRectFEnd = new RectF(mWidth - 100, mHeight - 100, mWidth - 50, mHeight - 50); // 사각형 영역을 만든다.
 	}
 
 	/**
@@ -212,12 +217,11 @@ public class CustomGestureView extends AppCompatImageView {
 		super.onDraw(canvas);
 
 		// drawing oval
-//		mPaint.setColor(Color.argb(130, 255, 255, 255));
-		mPaint.setColor(Color.RED);
+		mPaint.setColor(Color.argb(130, 255, 255, 255));
 		canvas.drawOval(mRectFStart, mPaint);
 		canvas.drawOval(mRectFEnd, mPaint);
 
-		canvas.drawColor(Color.argb(50, 255, 0, 0));
+		canvas.drawColor(Color.argb(100, 255, 0, 0));
 
 		if (!mDrawing) {
 			return;
