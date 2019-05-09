@@ -5,30 +5,30 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.RectF;
-import android.os.Handler;
+import android.graphics.drawable.BitmapDrawable;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
-import android.view.LayoutInflater;
 import android.view.MotionEvent;
-import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageView;
-import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+
+import androidx.appcompat.widget.AppCompatImageView;
 
 /**
  * 연속된 직선들을 n 방향으로 구간을 나누어
  * 360도 중에서 해당 구간으로 뻗어 나가는 직선을 인식하여 번호를 부여함으로써
  * 미리 정의된 연속된 번호들과 일치 하는가를 통해 사용자의 입력을 받아 들이는 방식
  */
-public class CustomGestureView extends RelativeLayout {
+public class CustomGestureView extends AppCompatImageView {
 
 	private Paint pt;
 
@@ -45,10 +45,7 @@ public class CustomGestureView extends RelativeLayout {
 
 	static final String HEX_BACKGROUND_TRANSPARENT = "#00000000";
 
-	private Bitmap bitmap;
-	private Bitmap mBitmapCharacter;
-
-	private Canvas mCanvas;
+	private Bitmap mBitmap;
 
 	static Context mContext;
 
@@ -57,6 +54,7 @@ public class CustomGestureView extends RelativeLayout {
 
 
 	private ImageView mImageViewPointer;
+	private ImageView mImageViewCharacter;
 
 	float oldXvalue;
 	float oldYvalue;
@@ -75,6 +73,10 @@ public class CustomGestureView extends RelativeLayout {
 	private int mWeightPointerX = -100;
 
 
+	/**
+	 * Java Code 에서 뷰를 생성 할 때 호출되는 생성자
+	 * @param context
+	 */
 	public CustomGestureView(Context context) {
 		super(context);
 		setFocusable(true);
@@ -84,6 +86,11 @@ public class CustomGestureView extends RelativeLayout {
 	}
 
 	// you will need the constructor public MyView(Context context, AttributeSet attrs), otherwise you will get an Exception when Android tries to inflate your View.
+	/**
+	 * Java Code 에서 뷰를 생성 할 때 호출되는 생성자
+	 * @param context
+	 * @param attrs
+	 */
 	public CustomGestureView(Context context, AttributeSet attrs) {
 		super(context, attrs);
 		setFocusable(true);
@@ -94,6 +101,12 @@ public class CustomGestureView extends RelativeLayout {
 
 	// if you add your View from xml and also spcify the android:style attribute like : <com.mypack.MyView style="@styles/MyCustomStyle" />
 	// you will also need the first constructor public MyView(Context context, AttributeSet attrs,int defStyle)
+	/**
+	 * Java Code 에서 뷰를 생성 할 때 호출되는 생성자
+	 * @param context
+	 * @param attrs
+	 * @param defStyle
+	 */
 	public CustomGestureView(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
 		setFocusable(true);
@@ -104,27 +117,16 @@ public class CustomGestureView extends RelativeLayout {
 
 
 	public void init_variable() {
-		LayoutInflater.from(mContext).inflate(R.layout.layout_gesture2, this);
-
 		mPaint = new Paint();// Avoid object allocations during draw/layout operations
 
-		mImageViewPointer = findViewById(R.id.imgView);
+		mBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.logo_genesis_g);
 
-		mButton = findViewById(R.id.btn_login);
-		mButton.setVisibility(View.VISIBLE);
-		mButton.setEnabled(false);
+		setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+		setImageBitmap(mBitmap);
+//		setBackgroundColor(Color.WHITE);
 
-		bitmap = getScaledBitmap(R.drawable.logo_genesis_g);
-		mWidth = bitmap.getWidth();
-		mHeight = bitmap.getHeight();
-
-		mImageViewPointer.setVisibility(View.VISIBLE);
-		mImageViewPointer.setImageResource(R.drawable.ic_car_24);
-		mImageViewPointer.setX(mWidth);
-		mImageViewPointer.setY(50);
-		mImageViewPointer.setColorFilter(getContext().getResources().getColor(R.color.white));
-
-		setBackgroundColor(Color.WHITE);
+		xWeight = (int) getX();
+		yWeight = (int) getY();
 
 		arVertex1 = new ArrayList<>();
 		arVertex2 = new ArrayList<>();
@@ -152,42 +154,46 @@ public class CustomGestureView extends RelativeLayout {
 		mRectFStart = new RectF(circleStartLeft, circleStartTop, circleStartRight, circleStartBottom); // 사각형 영역을 만든다
 		mRectFEnd = new RectF(circleEndLeft, circleEndTop, circleEndRight, circleEndBottom); // 사각형 영역을 만든다.
 	}
-	
+
+	/**
+	 * 뷰에 그림 그리는 행위를 담당하는 메소드
+	 * @param canvas
+	 */
 	@Override
 	public void onDraw(Canvas canvas) {
 		super.onDraw(canvas);
 
 		mIsAuthorized = false;
-		mButton.setEnabled(false);
+//		mButton.setEnabled(false);
 
 		mPaint.setFilterBitmap(true);
 
-		float canvasRate = (float) getWidth() / getHeight();
-		float bitmapRate = (float) bitmap.getWidth() / bitmap.getHeight();
+//		float canvasRate = (float) getWidth() / getHeight();
+//		float bitmapRate = (float) bitmap.getWidth() / bitmap.getHeight();
 
-		float width, height;	// drawn width & height
-		float xStart, yStart;	// start point (left top)
+//		float width, height;	// drawn width & height
+//		float xStart, yStart;	// start point (left top)
 
 		// calculation process to fit bitmap in canvas
-		if (canvasRate < bitmapRate) { // canvas is vertically long
-			width  = getWidth();
-			height = width / bitmapRate;
-			xStart = 0;
-			yStart = (getHeight() - height) / 2;
-		} else { // canvas is horizontally wide
-			height = getHeight();
-			width  = height * bitmapRate;
-			yStart = 0;
-			xStart = (getWidth() - width) / 2;
-		}
+//		if (canvasRate < bitmapRate) { // canvas is vertically long
+//			width  = getWidth();
+//			height = width / bitmapRate;
+//			xStart = 0;
+//			yStart = (getHeight() - height) / 2;
+//		} else { // canvas is horizontally wide
+//			height = getHeight();
+//			width  = height * bitmapRate;
+//			yStart = 0;
+//			xStart = (getWidth() - width) / 2;
+//		}
 
-		Log.e("onDraw", "calculation width: " + width);
-		Log.e("onDraw", "calculation height: " + height);
-		Log.e("onDraw", "calculation xStart: " + xStart);
-		Log.e("onDraw", "calculation yStart: " + yStart);
+//		Log.e("onDraw", "calculation width: " + width);
+//		Log.e("onDraw", "calculation height: " + height);
+//		Log.e("onDraw", "calculation xStart: " + xStart);
+//		Log.e("onDraw", "calculation yStart: " + yStart);
 
 
-		canvas.drawBitmap(bitmap, 0, 0, null);
+//		canvas.drawBitmap(bitmap, 0, 0, null);
 //		canvas.drawBitmap(bitmap, xWeight, yWeight, mPaint);
 
 		mPaint.setStrokeWidth(12);
@@ -268,8 +274,15 @@ public class CustomGestureView extends RelativeLayout {
 		// drawing oval
 		canvas.drawOval(mRectFStart, mPaint);
 		canvas.drawOval(mRectFEnd, mPaint);
+
+//		canvas.drawColor(Color.RED);
 	}
 
+	/**
+	 * 터치 이벤트를 처리하는 콜백 메소드
+	 * @param event
+	 * @return
+	 */
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
 
@@ -277,17 +290,24 @@ public class CustomGestureView extends RelativeLayout {
 		switch (event.getAction()) {
 			// 처음 눌렸을 때
 			case MotionEvent.ACTION_DOWN: {
-				int touchedX = (int) event.getX() + xWeight;
-				int touchedY = (int) event.getY() + yWeight;
 				int touchCount = event.getPointerCount();
+
+				mBitmap = ((BitmapDrawable) getDrawable()).getBitmap();
+
+				Matrix inverse = new Matrix();
+				this.getImageMatrix().invert(inverse);
+				float[] touchPoint = new float[] {event.getX(), event.getY()};
+				inverse.mapPoints(touchPoint);
+				int touchedX = (int) touchPoint[0];
+				int touchedY = (int) touchPoint[1];
 
 				oldXvalue = touchedX;
 				oldYvalue = touchedY;
 
 				if ( touchCount == 1 ) {
-					if ( touchedX >= 0 && touchedX < bitmap.getWidth()
-							&& touchedY >= 0 && touchedY < bitmap.getHeight() ) {
-						int pixel = bitmap.getPixel(touchedX, touchedY);
+					if ( touchedX >= 0 && touchedX < mBitmap.getWidth()
+							&& touchedY >= 0 && touchedY < mBitmap.getHeight() ) {
+						int pixel = mBitmap.getPixel(touchedX, touchedY);
 						int alpha = Color.alpha(pixel);
 						int intColor = getRgbIntColor(pixel);
 
@@ -299,30 +319,30 @@ public class CustomGestureView extends RelativeLayout {
 						Log.e("ACTION_DOWN", "addAlpha: " + addAlpha);
 						Log.e("ACTION_DOWN", "====================");
 
-						if (!mRectFStart.contains(touchedX, touchedY)) {
-							initPointer(mImageViewPointer, mWidth - 50, 50);
+//						if ( !mRectFStart.contains(touchedX, touchedY) ) {
+////							initPointer(mImageViewPointer, mWidth - 50, 50);
+//
+//							arVertex1.clear();
+//							arVertex2.clear();
+//							arVertex3.clear();
+//							invalidate();// 뷰를 갱신
+//							return false;
+//						}
+//
+//						if ( HEX_BACKGROUND_TRANSPARENT.equals(addAlpha) ) {
+////							initPointer(mImageViewPointer, mWidth - 50, 50);
+//
+//							arVertex1.clear();
+//							arVertex2.clear();
+//							arVertex3.clear();
+//							invalidate();// 뷰를 갱신
+//							return false;
+//						}
 
-							arVertex1.removeAll(arVertex1);
-							arVertex2.removeAll(arVertex2);
-							arVertex3.removeAll(arVertex3);
-							invalidate();
-							return false;
-						}
-
-						if (HEX_BACKGROUND_TRANSPARENT.equals(addAlpha)) {
-							initPointer(mImageViewPointer, mWidth - 50, 50);
-
-							arVertex1.removeAll(arVertex1);
-							arVertex2.removeAll(arVertex2);
-							arVertex3.removeAll(arVertex3);
-							invalidate();
-							return false;
-						}
-
-						arVertex1.removeAll(arVertex1);
-						arVertex2.removeAll(arVertex2);
-						arVertex3.removeAll(arVertex3);
-						arVertex1.add( new Vertex( event.getX(), event.getY() ) );
+						arVertex1.clear();
+						arVertex2.clear();
+						arVertex3.clear();
+						arVertex1.add( new Vertex( touchedX, touchedY ) );
 					}
 				}
 
@@ -331,17 +351,24 @@ public class CustomGestureView extends RelativeLayout {
 			} // end case
 			// 누르고 움직였을 때
 			case MotionEvent.ACTION_MOVE: {
-				int touchedX = (int) event.getX();
-				int touchedY = (int) event.getY();
 				int touchCount = event.getPointerCount();
+
+				mBitmap = ((BitmapDrawable) getDrawable()).getBitmap();
+
+				Matrix inverse = new Matrix();
+				this.getImageMatrix().invert(inverse);
+				float[] touchPoint = new float[] {event.getX(), event.getY()};
+				inverse.mapPoints(touchPoint);
+				int touchedX = (int) touchPoint[0];
+				int touchedY = (int) touchPoint[1];
 
 				Log.e("ACTION_MOVE", "touchedX: " + touchedX + "");
 				Log.e("ACTION_MOVE", "touchedY: " + touchedY + "");
 				Log.e("ACTION_MOVE", "touchCount: " + touchCount + "");
 
-				if ( touchedX >= 0 && touchedX < bitmap.getWidth()
-						&& touchedY >= 0 && touchedY < bitmap.getHeight() ) {
-					int pixel = bitmap.getPixel(touchedX, touchedY);
+				if ( touchedX >= 0 && touchedX < mBitmap.getWidth()
+						&& touchedY >= 0 && touchedY < mBitmap.getHeight() ) {
+					int pixel = mBitmap.getPixel(touchedX, touchedY);
 					int alpha = Color.alpha(pixel);
 					int intColor = getRgbIntColor(pixel);
 
@@ -353,31 +380,31 @@ public class CustomGestureView extends RelativeLayout {
 					Log.e("ACTION_MOVE", "addAlpha: " + addAlpha);
 					Log.e("ACTION_MOVE", "====================");
 
-					if (HEX_BACKGROUND_TRANSPARENT.equals(addAlpha)) {
-						initPointer(mImageViewPointer, mWidth - 50, 50);
+//					if (HEX_BACKGROUND_TRANSPARENT.equals(addAlpha)) {
+////						initPointer(mImageViewPointer, mWidth - 50, 50);
+//
+//						arVertex1.clear();
+//						arVertex2.clear();
+//						arVertex3.clear();
+//						invalidate();// 뷰를 갱신
+//
+//						return false;
+//					}
 
-						arVertex1.removeAll(arVertex1);
-						arVertex2.removeAll(arVertex2);
-						arVertex3.removeAll(arVertex3);
-						invalidate();
-
-						return false;
-					}
-
-					mImageViewPointer.setX(touchedX + mWeightPointerX);
-					mImageViewPointer.setY(touchedY);
+//					mImageViewPointer.setX(touchedX + mWeightPointerX);
+//					mImageViewPointer.setY(touchedY);
 
 					arVertex1.add( new Vertex( event.getX(), event.getY() ) );
-					invalidate();
+					invalidate();// 뷰를 갱신
 
 				} else {
-					initPointer(mImageViewPointer, mWidth - 50, 50);
+//					initPointer(mImageViewPointer, mWidth - 50, 50);
 
-					arVertex1.removeAll(arVertex1);
-					arVertex2.removeAll(arVertex2);
-					arVertex3.removeAll(arVertex3);
+					arVertex1.clear();
+					arVertex2.clear();
+					arVertex3.clear();
 
-					invalidate();
+					invalidate();// 뷰를 갱신
 
 					return false;
 				}
@@ -386,12 +413,18 @@ public class CustomGestureView extends RelativeLayout {
 			} // end case
 			// 누른걸 땠을 때
 			case MotionEvent.ACTION_UP: {
-				int touchedX = (int) event.getX();
-				int touchedY = (int) event.getY();
+				mBitmap = ((BitmapDrawable) getDrawable()).getBitmap();
 
-				if ( touchedX >= 0 && touchedX < bitmap.getWidth()
-						&& touchedY >= 0 && touchedY < bitmap.getHeight() ) {
-					int pixel = bitmap.getPixel(touchedX, touchedY);
+				Matrix inverse = new Matrix();
+				this.getImageMatrix().invert(inverse);
+				float[] touchPoint = new float[] {event.getX(), event.getY()};
+				inverse.mapPoints(touchPoint);
+				int touchedX = (int) touchPoint[0];
+				int touchedY = (int) touchPoint[1];
+
+				if ( touchedX >= 0 && touchedX < mBitmap.getWidth()
+						&& touchedY >= 0 && touchedY < mBitmap.getHeight() ) {
+					int pixel = mBitmap.getPixel(touchedX, touchedY);
 					int alpha = Color.alpha(pixel);
 					int intColor = getRgbIntColor(pixel);
 
@@ -403,27 +436,27 @@ public class CustomGestureView extends RelativeLayout {
 					Log.e("ACTION_UP", "addAlpha: " + addAlpha);
 					Log.e("ACTION_UP", "====================");
 
-					if (!mRectFEnd.contains(touchedX, touchedY)) {
-						initPointer(mImageViewPointer, mWidth - 50, 50);
-
-						arVertex1.removeAll(arVertex1);
-						arVertex2.removeAll(arVertex2);
-						arVertex3.removeAll(arVertex3);
-						invalidate();
-
-						return false;
-					}
-
-					if (HEX_BACKGROUND_TRANSPARENT.equals(addAlpha)) {
-						initPointer(mImageViewPointer, mWidth - 50, 50);
-
-						arVertex1.removeAll(arVertex1);
-						arVertex2.removeAll(arVertex2);
-						arVertex3.removeAll(arVertex3);
-						invalidate();
-
-						return false;
-					}
+//					if (!mRectFEnd.contains(touchedX, touchedY)) {
+////						initPointer(mImageViewPointer, mWidth - 50, 50);
+//
+//						arVertex1.clear();
+//						arVertex2.clear();
+//						arVertex3.clear();
+//						invalidate();// 뷰를 갱신
+//
+//						return false;
+//					}
+//
+//					if (HEX_BACKGROUND_TRANSPARENT.equals(addAlpha)) {
+////						initPointer(mImageViewPointer, mWidth - 50, 50);
+//
+//						arVertex1.clear();
+//						arVertex2.clear();
+//						arVertex3.clear();
+//						invalidate();// 뷰를 갱신
+//
+//						return false;
+//					}
 
 					double section = 2 * pi / sectionNum;
 					float allAngle = 0, allAngle1 = 0, allLength = 0;
@@ -495,14 +528,14 @@ public class CustomGestureView extends RelativeLayout {
 						// TODO BUSINESS LOGIC
 						mIsAuthorized = true;
 
-						Handler handler = new Handler();
-						Runnable runnable = new Runnable() {
-							@Override
-							public void run() {
-								mButton.setEnabled(true);
-							}
-						};
-						handler.postDelayed(runnable, 1000);
+//						Handler handler = new Handler();
+//						Runnable runnable = new Runnable() {
+//							@Override
+//							public void run() {
+//								mButton.setEnabled(true);
+//							}
+//						};
+//						handler.postDelayed(runnable, 1000);
 
 						return false;
 					} else if (-allAngle1 > roundMinAngle) {
@@ -516,14 +549,14 @@ public class CustomGestureView extends RelativeLayout {
 						// TODO BUSINESS LOGIC
 						mIsAuthorized = true;
 
-						Handler handler = new Handler();
-						Runnable runnable = new Runnable() {
-							@Override
-							public void run() {
-								mButton.setEnabled(true);
-							}
-						};
-						handler.postDelayed(runnable, 1000);
+//						Handler handler = new Handler();
+//						Runnable runnable = new Runnable() {
+//							@Override
+//							public void run() {
+//								mButton.setEnabled(true);
+//							}
+//						};
+//						handler.postDelayed(runnable, 1000);
 
 						return false;
 					}
@@ -595,27 +628,27 @@ public class CustomGestureView extends RelativeLayout {
 							&& arVertex2.size() > 20
 							&& arVertex3.size() > 10
 //							&& Math.abs( (int) (allAngle * rtd) ) > 4 // 총 각도
-							&& allLength / arVertex2.size() > 90; // 전체 길이
+							&& allLength / arVertex2.size() > 85; // 전체 길이
 
 					if (isValidTouch) {
 						mIsAuthorized = true;
-						Handler handler = new Handler();
-						Runnable runnable = new Runnable() {
-							@Override
-							public void run() {
-								mButton.setEnabled(true);
-							}
-						};
-						handler.postDelayed(runnable, 1000);
+//						Handler handler = new Handler();
+//						Runnable runnable = new Runnable() {
+//							@Override
+//							public void run() {
+//								mButton.setEnabled(true);
+//							}
+//						};
+//						handler.postDelayed(runnable, 1000);
 					}
 
 				} else {
-					initPointer(mImageViewPointer, mWidth - 50, 50);
+//					initPointer(mImageViewPointer, mWidth - 50, 50);
 
-					arVertex1.removeAll(arVertex1);
-					arVertex2.removeAll(arVertex2);
-					arVertex3.removeAll(arVertex3);
-					invalidate();
+					arVertex1.clear();
+					arVertex2.clear();
+					arVertex3.clear();
+					invalidate();// 뷰를 갱신
 
 					return false;
 				}
@@ -627,6 +660,7 @@ public class CustomGestureView extends RelativeLayout {
 			} // end case
 		} // end switch
 
+		// true 를 반환하여 더 이상의 이벤트 처리가 이루어지지 않도록 완료한다.
 		return true;
 	}
 
@@ -763,6 +797,27 @@ public class CustomGestureView extends RelativeLayout {
 		}
 		originalColor = originalColor.replace("#", "#" + alphaHex);
 		return originalColor;
+	}
+
+	/*
+	 * Project position on ImageView to position on Bitmap
+	 * return the color on the position
+	 */
+	private int getProjectedColor(ImageView iv, Bitmap bm, int x, int y){
+		if (x<0 || y<0 || x > iv.getWidth() || y > iv.getHeight()) {
+			//outside ImageView
+//			return color.background_light;
+			return 0;
+		}
+
+		int projectedX = (int) ( (double) x * ( (double) bm.getWidth() / (double) iv.getWidth() ) );
+		int projectedY = (int) ( (double) y * ( (double) bm.getHeight() / (double) iv.getHeight() ) );
+
+		Log.e("getProjectedColor", x + ":" + y + "/" + iv.getWidth() + " : " + iv.getHeight() + "\n" +
+				projectedX + " : " + projectedY + "/" + bm.getWidth() + " : " + bm.getHeight()
+		);
+
+		return bm.getPixel(projectedX, projectedY);
 	}
 
 }
