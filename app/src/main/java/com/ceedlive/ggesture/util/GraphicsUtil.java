@@ -82,7 +82,7 @@ public class GraphicsUtil {
      * @return Bitmap 리사이즈 된 bitmap
      */
     public static Bitmap getResizedBitmapByScale(Bitmap bitmap, int width, int height) {
-        if (bitmap.getWidth() != width || bitmap.getHeight() != height) {
+        if ( bitmap.getWidth() != width || bitmap.getHeight() != height ) {
             float ratio = 1.0f;
 
             if (width > height) {
@@ -92,8 +92,8 @@ public class GraphicsUtil {
             }
 
             bitmap = Bitmap.createScaledBitmap(bitmap,
-                    (int)(((float)bitmap.getWidth()) * ratio), // Width
-                    (int)(((float)bitmap.getHeight()) * ratio), // Height
+                    (int) ( ( (float) bitmap.getWidth() ) * ratio), // Width
+                    (int) ( ( (float) bitmap.getHeight() ) * ratio), // Height
                     false);
         }
 

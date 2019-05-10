@@ -11,11 +11,8 @@ import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
-import android.util.DisplayMetrics;
 import android.util.Log;
-import android.view.Display;
 import android.view.MotionEvent;
-import android.view.WindowManager;
 import android.widget.Toast;
 
 import com.ceedlive.ggesture.util.GraphicsUtil;
@@ -55,14 +52,22 @@ public class CustomGestureView extends AppCompatImageView {
 	private int mWidth, mHeight;
 	private int mPointerX, mPointerY;
 
-	private int mDrawableWidth, mDrawableHeight;
-	private int mViewWidth, mViewHeight;
-
-	private Rect mRectStart, mRectIng, mRectEnd;
+	private Rect mRectStart, mRectIng1, mRectIng2, mRectEnd;
 
 	private boolean mIsAuthorized = false;
-	private boolean mIsPassRectIng = false;
+	private boolean mIsPassRectIng1 = false;
+	private boolean mIsPassRectIng2 = false;
 	private boolean mDrawing = false;
+
+	//
+	private int mDrawableWidth, mDrawableHeight;
+	private int mViewWidth, mViewHeight;
+	private int mRealImageWidth, mRealImageHeight;
+
+	private float mDpi;
+	private int mMaxResolution = 1280;
+
+	//
 
 	private GesturePointerListener mGesturePointerListener;
 
@@ -123,11 +128,16 @@ public class CustomGestureView extends AppCompatImageView {
 	public void initialize() {
 		mPaint = new Paint();// Avoid object allocations during draw/layout operations
 
-		mBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.logo_genesis_g);
+		mDpi = GraphicsUtil.getDotPerInch(mContext);
+
+		mBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.google_icon);
+		mBitmap = GraphicsUtil.getResizedBitmapByResolution(mBitmap, mMaxResolution);
+//		mBitmap = GraphicsUtil.getBitmapFromVectorDrawable(mContext, R.drawable.ic_google);
+//		mBitmap = GraphicsUtil.getResizedBitmapByScale(mBitmap, 1024, 1024);
 //		mBitmapPointer = BitmapFactory.decodeResource(getResources(), R.drawable.ic_hyundai_64);
 
-		mBitmapPointer = GraphicsUtil.getBitmapFromVectorDrawable(mContext, R.drawable.ic_hyundai);
-		mBitmapPointer = GraphicsUtil.getResizedBitmapByScale(mBitmapPointer, 128, 128);
+		mBitmapPointer = GraphicsUtil.getBitmapFromVectorDrawable(mContext, R.drawable.ic_happy);
+		mBitmapPointer = GraphicsUtil.getResizedBitmapByScale(mBitmapPointer, 256, 256);
 
 		mMatrix = new Matrix();
 
@@ -141,9 +151,36 @@ public class CustomGestureView extends AppCompatImageView {
 		setImageBitmap(mBitmap);
 		mDrawable = getDrawable();
 
-		mRectStart = new Rect(mWidth - 300, 0, mWidth, 200); // 사각형 영역을 만든다
-		mRectIng = new Rect(0, mHeight / 2, 300, (mHeight / 2) + 100); // 사각형 영역을 만든다
-		mRectEnd = new Rect(mWidth - 300, mHeight / 2, mWidth, (mHeight / 2) + 100); // 사각형 영역을 만든다
+		// ========================================
+		mDrawableWidth = mDrawable.getIntrinsicWidth();
+		mDrawableHeight = mDrawable.getIntrinsicHeight();
+
+		mViewWidth = this.getWidth() - this.getPaddingLeft() - this.getPaddingRight();
+		mViewHeight = this.getHeight() - this.getPaddingTop() - this.getPaddingBottom();
+
+		mRealImageWidth = (int) ( (mViewWidth - mDrawableWidth) * 0.25f );
+		// (I do not know why I had to put 0.25f instead of 0.5f,
+		// but I think this issue is a consequence of the screen density)
+
+		mRealImageHeight = (int) ( (mViewHeight - mDrawableHeight) * 0.25f );
+
+		Log.e("init_variable", "mDrawableWidth: " + mDrawableWidth);
+		Log.e("init_variable", "mDrawableHeight: " + mDrawableHeight);
+
+		Log.e("init_variable", "mViewWidth: " + mViewWidth);
+		Log.e("init_variable", "mViewHeight: " + mViewHeight);
+
+		Log.e("init_variable", "mRealImageWidth: " + mRealImageWidth);
+		Log.e("init_variable", "mRealImageHeight: " + mRealImageHeight);
+
+		Log.e("init_variable", "mWidth: " + mWidth);
+		Log.e("init_variable", "mHeight: " + mHeight);
+		// ========================================
+
+		mRectStart = new Rect(mWidth - 550, 0, mWidth - 200, 350); // 사각형 영역을 만든다
+		mRectIng1 = new Rect(0, (mHeight / 2) - 200, 400, (mHeight / 2) + 200); // 사각형 영역을 만든다
+		mRectIng2 = new Rect(mWidth - 400, (mHeight / 2) - 200, mWidth, (mHeight / 2) + 200); // 사각형 영역을 만든다
+		mRectEnd = new Rect(mWidth - 800, (mHeight / 2) - 200, mWidth - 400, (mHeight / 2) + 200); // 사각형 영역을 만든다
 
 		initPointerCoordinate();
 	}
@@ -159,13 +196,17 @@ public class CustomGestureView extends AppCompatImageView {
 		super.onDraw(canvas);
 
 		// 시작점, 중간점, 끝점을 담당하는 투명 사각형 그리기
-		mPaint.setColor(Color.TRANSPARENT);
+//		mPaint.setColor(Color.TRANSPARENT);
+		mPaint.setColor(Color.RED);
 		canvas.drawRect(mRectStart, mPaint);
-		canvas.drawRect(mRectIng, mPaint);
+		canvas.drawRect(mRectIng1, mPaint);
+		canvas.drawRect(mRectIng2, mPaint);
 		canvas.drawRect(mRectEnd, mPaint);
 
 		// 터치를 따라 이동하는 포인터 이미지
 		canvas.drawBitmap(mBitmapPointer, mPointerX, mPointerY, null);
+
+		canvas.drawColor(Color.argb(100, 255, 0, 0));
 
 		// 터치 이벤트가 시작점, 중간점, 끝점을 적절하게 지나는지 검증
 		if (!mDrawing) {
@@ -354,8 +395,12 @@ public class CustomGestureView extends AppCompatImageView {
 					String hexColor = String.format("#%06X", (0xFFFFFF & intColor));
 					String addAlpha = GraphicsUtil.getHexaDecimalColorAddedAlpha(hexColor, alpha);
 
-					if ( mRectIng.contains(touchedX, touchedY) ) {
-						mIsPassRectIng = true;
+					if ( mRectIng1.contains(touchedX, touchedY) ) {
+						mIsPassRectIng1 = true;
+					}
+
+					if ( mRectIng2.contains(touchedX, touchedY) ) {
+						mIsPassRectIng2 = true;
 					}
 
 					if ( HEX_BACKGROUND_TRANSPARENT.equals(addAlpha) ) {
@@ -407,7 +452,7 @@ public class CustomGestureView extends AppCompatImageView {
 					String hexColor = String.format("#%06X", (0xFFFFFF & intColor));
 					String addAlpha = GraphicsUtil.getHexaDecimalColorAddedAlpha(hexColor, alpha);
 
-					if (!mIsPassRectIng) {
+					if ( !mIsPassRectIng1 || !mIsPassRectIng2 ) {
 						initPointerCoordinate();
 
 						arVertex1.clear();
@@ -581,11 +626,11 @@ public class CustomGestureView extends AppCompatImageView {
 						arVertex3.add(vertex);
 					} // end for each
 
-//					Log.e("ACTION_UP", "arVertex1.size(): " + arVertex1.size() + "");
-//					Log.e("ACTION_UP", "arVertex2.size(): " + arVertex2.size() + "");
-//					Log.e("ACTION_UP", "arVertex3.size(): " + arVertex3.size() + "");
-//					Log.e("ACTION_UP", "AllmoveAngle: " + AllmoveAngle + "");
-//					Log.e("ACTION_UP", "allLength / arVertex2.size(): " + allLength / arVertex2.size());
+					Log.e("ACTION_UP", "arVertex1.size(): " + arVertex1.size() + "");
+					Log.e("ACTION_UP", "arVertex2.size(): " + arVertex2.size() + "");
+					Log.e("ACTION_UP", "arVertex3.size(): " + arVertex3.size() + "");
+					Log.e("ACTION_UP", "AllmoveAngle: " + AllmoveAngle + "");
+					Log.e("ACTION_UP", "allLength / arVertex2.size(): " + allLength / arVertex2.size());
 
 					invalidate();
 
@@ -646,8 +691,8 @@ public class CustomGestureView extends AppCompatImageView {
 	 *
 	 */
 	private void initPointerCoordinate() {
-		mPointerX = mWidth - 150;
-		mPointerY = 0;
+		mPointerX = mWidth - 500;
+		mPointerY = 50;
 	}
 
 	/**
