@@ -5,14 +5,14 @@
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".activity.Draw9Activity">
+    tools:context=".test_activity.Draw9Activity">
 
-        <com.ceedlive.ggesture.DrawView10
+        <com.ceedlive.ggesture.test_view.DrawView10
             android:id="@+id/main_iv_bg"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_centerInParent="true"
             >
-        </com.ceedlive.ggesture.DrawView10>
+        </com.ceedlive.ggesture.test_view.DrawView10>
 
 </android.support.design.widget.CoordinatorLayout>

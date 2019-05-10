@@ -1,4 +1,4 @@
-package com.ceedlive.ggesture.activity;
+package com.ceedlive.ggesture.test_activity;
 
 import android.graphics.Matrix;
 import android.graphics.PointF;

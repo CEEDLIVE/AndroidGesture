@@ -1,10 +1,10 @@
-package com.ceedlive.ggesture.activity;
+package com.ceedlive.ggesture.test_activity;
 
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.widget.ImageView;
 
-import com.ceedlive.ggesture.DrawView8;
+import com.ceedlive.ggesture.test_view.DrawView8;
 
 import androidx.appcompat.app.AppCompatActivity;
 

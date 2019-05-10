@@ -1,4 +1,4 @@
-package com.ceedlive.ggesture;
+package com.ceedlive.ggesture.test_view;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -12,6 +12,8 @@ import android.os.Build;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.widget.Toast;
+
+import com.ceedlive.ggesture.R;
 
 import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.content.ContextCompat;

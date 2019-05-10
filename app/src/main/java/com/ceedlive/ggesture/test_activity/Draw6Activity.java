@@ -1,4 +1,4 @@
-package com.ceedlive.ggesture.activity;
+package com.ceedlive.ggesture.test_activity;
 
 import android.content.Context;
 import android.graphics.Bitmap;

@@ -1,8 +1,8 @@
-package com.ceedlive.ggesture.activity;
+package com.ceedlive.ggesture.test_activity;
 
 import android.os.Bundle;
 
-import com.ceedlive.ggesture.DrawView11;
+import com.ceedlive.ggesture.test_view.DrawView11;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;

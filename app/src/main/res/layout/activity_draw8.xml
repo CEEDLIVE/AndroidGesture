@@ -12,7 +12,7 @@
         android:layout_height="match_parent"
         >
 
-        <com.ceedlive.ggesture.DrawView8
+        <com.ceedlive.ggesture.test_view.DrawView8
             android:id="@+id/cv_draw8"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

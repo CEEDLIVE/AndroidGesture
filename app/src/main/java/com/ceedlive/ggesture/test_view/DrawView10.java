@@ -1,4 +1,4 @@
-package com.ceedlive.ggesture;
+package com.ceedlive.ggesture.test_view;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -7,18 +7,19 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.graphics.Rect;
-import android.graphics.RectF;
+import android.util.AttributeSet;
 import android.util.Log;
 import android.view.Display;
+import android.view.LayoutInflater;
 import android.view.MotionEvent;
-import android.view.View;
-import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.ImageView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.ceedlive.ggesture.R;
 
 import java.util.ArrayList;
 
@@ -27,7 +28,7 @@ import java.util.ArrayList;
  * 360도 중에서 해당 구간으로 뻗어 나가는 직선을 인식하여 번호를 부여함으로써
  * 미리 정의된 연속된 번호들과 일치 하는가를 통해 사용자의 입력을 받아 들이는 방식
  */
-public class DrawView9 extends View {
+public class DrawView10 extends RelativeLayout {
 	Paint pt;
 
 //	static final float pi = 3.1415926535f;
@@ -51,132 +52,61 @@ public class DrawView9 extends View {
 
 	static Context mContext;
 
-	private Rect rectSrc;
-	private Rect rectDest;
 
-	private Bitmap bullet;
+	private ImageView imgView;
+	LayoutInflater inflater;
 
 
 	float oldXvalue;
 	float oldYvalue;
 
-	private ImageView imageView;
+	int mWidth;
+	int mHeight;
 
-	public DrawView9(Context context) {
+	private Rect mRectStart;
+	private Rect mRectEnd;
+
+
+	public DrawView10(Context context) {
 		super(context);
 		setFocusable(true);
 
 		mContext = context;
-		imageView = new ImageView(mContext);
-
 		init_variable();
-
-		aaa();
 	}
 
+	// you will need the constructor public MyView(Context context, AttributeSet attrs), otherwise you will get an Exception when Android tries to inflate your View.
+	public DrawView10(Context context, AttributeSet attrs) {
+		super(context, attrs);
+		setFocusable(true);
 
-	public void aaa() {
-		imageView.setVisibility(VISIBLE);
-		imageView.setImageResource(R.drawable.ic_car_24);
-		imageView.setOnTouchListener(new View.OnTouchListener() {
-			@Override
-			public boolean onTouch(View v, MotionEvent event) {
-
-				int width = ((ViewGroup) v.getParent()).getWidth() - v.getWidth();
-				int height = ((ViewGroup) v.getParent()).getHeight() - v.getHeight();
-
-				switch(event.getAction()){
-					case MotionEvent.ACTION_DOWN: // 처음 위치를 기억해둔다.
-						Log.e("MotionEvent", "ACTION_DOWN: ");
-
-						oldXvalue = event.getX();
-						oldYvalue = event.getY();
-
-						int touchedX = (int) event.getX();
-						int touchedY = (int) event.getY();
-						int touchCount = event.getPointerCount();
-
-						if ( touchedX < bitmap.getWidth() && touchedY < bitmap.getHeight() ) {
-							int pixel = bitmap.getPixel(touchedX, touchedY);
-
-							int red = Color.red(pixel);
-							int blue = Color.blue(pixel);
-							int green = Color.green(pixel);
-							int alpha = Color.alpha(pixel);
-
-							int intColor = Color.rgb(red, blue, green);
-							int parsedColor = Color.parseColor("#000000");
-
-							Log.e("intColor", "" + intColor);
-
-							String hexColor = String.format("#%06X", (0xFFFFFF & intColor));
-
-							String addAlpha = addAlpha(hexColor, alpha);
-
-							Log.e("intColor", "" + intColor);
-							Log.e("hexColor", "" + hexColor);
-							Log.e("addAlpha", "" + addAlpha);
-						}
-
-						break;
-
-					case MotionEvent.ACTION_POINTER_DOWN:
-						Log.e("MotionEvent", "ACTION_POINTER_DOWN");
-						break;
-
-					case MotionEvent.ACTION_MOVE:
-						Log.e("MotionEvent", "ACTION_MOVE");
-
-						v.setX(event.getRawX() - oldXvalue);
-						v.setY(event.getRawY() - (oldYvalue + v.getHeight()));
-
-						break;
-
-					case MotionEvent.ACTION_UP:
-						Log.e("MotionEvent", "ACTION_UP");
-
-						if (v.getX() > width && v.getY() > height) {
-							v.setX(width);
-							v.setY(height);
-						} else if (v.getX() < 0 && v.getY() > height) {
-							v.setX(0);
-							v.setY(height);
-						} else if (v.getX() > width && v.getY() < 0) {
-							v.setX(width);
-							v.setY(0);
-						} else if (v.getX() < 0 && v.getY() < 0) {
-							v.setX(0);
-							v.setY(0);
-						} else if (v.getX() < 0 || v.getX() > width) {
-							if (v.getX() < 0) {
-								v.setX(0);
-								v.setY(event.getRawY() - oldYvalue - v.getHeight());
-							} else {
-								v.setX(width);
-								v.setY(event.getRawY() - oldYvalue - v.getHeight());
-							}
-						} else if (v.getY() < 0 || v.getY() > height) {
-							if (v.getY() < 0) {
-								v.setX(event.getRawX() - oldXvalue);
-								v.setY(0);
-							} else {
-								v.setX(event.getRawX() - oldXvalue);
-								v.setY(height);
-							}
-						}
-
-						break;
-
-				}// end switch
-
-//                mImageView.setImageMatrix(matrix);
-				return true;
-			}
-		});
-
+		mContext = context;
+		init_variable();
 	}
+
+	// if you add your View from xml and also spcify the android:style attribute like : <com.mypack.MyView style="@styles/MyCustomStyle" />
+	// you will also need the first constructor public MyView(Context context, AttributeSet attrs,int defStyle)
+	public DrawView10(Context context, AttributeSet attrs, int defStyle) {
+		super(context, attrs, defStyle);
+		setFocusable(true);
+
+		mContext = context;
+		init_variable();
+	}
+
 
 	public void init_variable() {
+		LayoutInflater.from(mContext).inflate(R.layout.layout_gesture2, this);
+		imgView = findViewById(R.id.imgView);
+		bitmap = getScaledBitmap(R.drawable.logo_genesis_g);
+		mWidth = bitmap.getWidth();
+		mHeight = bitmap.getHeight();
+
+		imgView.setVisibility(VISIBLE);
+		imgView.setImageResource(R.drawable.ic_car_24);
+		imgView.setX(mWidth);
+		imgView.setY(50);
+		imgView.setColorFilter(getContext().getResources().getColor(R.color.white));
 
 		setBackgroundColor(Color.WHITE);
 
@@ -187,42 +117,9 @@ public class DrawView9 extends View {
 		pt = new Paint();
 		tv = new TextView(this.getContext());
 
-//		// bmp is your Bitmap object
-//		int imgHeight = bitmap.getHeight();
-//		int imgWidth = bitmap.getWidth();
-//		int containerHeight = getHeight();
-//		int containerWidth = getWidth();
-//		boolean ch2cw = containerHeight > containerWidth;
-//		float h2w = (float) imgHeight / (float) imgWidth;
-//		float newContainerHeight, newContainerWidth;
-//
-//		if (h2w > 1) {
-//			// height is greater than width
-//			if (ch2cw) {
-//				newContainerWidth = (float) containerWidth;
-//				newContainerHeight = newContainerWidth * h2w;
-//			} else {
-//				newContainerHeight = (float) containerHeight;
-//				newContainerWidth = newContainerHeight / h2w;
-//			}
-//		} else {
-//			// width is greater than height
-//			if (ch2cw) {
-//				newContainerWidth = (float) containerWidth;
-//				newContainerHeight = newContainerWidth / h2w;
-//			} else {
-//				newContainerWidth = (float) containerHeight;
-//				newContainerHeight = newContainerWidth * h2w;
-//			}
-//		}
-//
-////		Bitmap copy = Bitmap.createScaledBitmap(bitmap, (int) newContainerWidth, (int) newContainerHeight, false);
-//
-//		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-//			setBackground(new BitmapDrawable(getResources(), bitmap));
-//		} else {
-//			setBackgroundDrawable(new BitmapDrawable(getResources(), bitmap));
-//		}
+//		mRect = new Rect(100, 100, 300, 180); // 사각형 영역을 만든다
+		mRectStart = new Rect(mWidth - 130, 90, mWidth + 30, 150); // 사각형 영역을 만든다
+		mRectEnd = new Rect(mWidth - 130, 300, mWidth + 30, 360); // 사각형 영역을 만든다
 	}
 	
 	@Override
@@ -232,6 +129,30 @@ public class DrawView9 extends View {
 
 		mPaint = new Paint();
 		mPaint.setFilterBitmap(true);
+
+
+		float canvasRate = (float) canvas.getWidth() / canvas.getHeight();
+		float bitmapRate = (float) bitmap.getWidth() / bitmap.getHeight();
+
+
+		float width, height;        // drawn width & height
+		float xStart, yStart;       // start point (left top)
+
+		// calculation process to fit bitmap in canvas
+		if (canvasRate < bitmapRate) { // canvas is vertically long
+			width  = canvas.getWidth();
+			height = width / bitmapRate;
+			xStart = 0;
+			yStart = (canvas.getHeight() - height) / 2;
+		} else { // canvas is horizontally wide
+			height = canvas.getHeight();
+			width  = height * bitmapRate;
+			yStart = 0;
+			xStart = (canvas.getWidth() - width) / 2;
+		}
+
+
+
 
 //		Bitmap bitmapOrg = BitmapFactory.decodeResource(getResources(),R.drawable.logo_genesis_g);
 //		int targetWidth  = bitmapOrg.getWidth() * 2;
@@ -252,18 +173,18 @@ public class DrawView9 extends View {
 //		canvas.drawBitmap(resizedBitmap, 10,10 + h + 10, mPaint);
 
 //		Bitmap bitmapOrg = BitmapFactory.decodeResource(getResources(),R.drawable.logo_genesis_g);
-		bitmap = getScaledBitmap(R.drawable.logo_genesis_g);
-		int h = bitmap.getHeight();
+//		bitmap = getScaledBitmap(R.drawable.logo_genesis_g);
+
 
 //		int targetWidth  = bitmapOrg.getWidth() * 2;
 //		int targetHeight = bitmapOrg.getHeight() * 2;
 		int targetWidth  = bitmap.getWidth();
 		int targetHeight = bitmap.getHeight();
 
-		RectF rectf = new RectF(0, 0, targetWidth, targetHeight);
-		Path path = new Path();
-		path.addRect(rectf, Path.Direction.CW);
-		canvas.clipPath(path);
+//		RectF rectf = new RectF(0, 0, targetWidth, targetHeight);
+//		Path path = new Path();
+//		path.addRect(rectf, Path.Direction.CW);
+//		canvas.clipPath(path);
 
 		mPaint.setAlpha(200);// 투명도 설정, 0 ~ 255
 		canvas.drawBitmap(bitmap, 0, 0, mPaint);
@@ -368,8 +289,9 @@ public class DrawView9 extends View {
 //in run method
 //		canvas.drawBitmap(bitmap, null, dstRect, null);
 
-//		float min = (width < height)? width : height;
+		float min = (width < height) ? width : height;
 //		float radius = min * 0.03f;
+		float radius = min * 0.07f;
 
 //		Log.e("min", min + "");
 //		Log.e("radius", radius + "");
@@ -383,6 +305,10 @@ public class DrawView9 extends View {
 //				radius, mPaint);
 //		canvas.drawCircle(xStart + width - radius, yStart + height - radius,
 //				radius, mPaint);
+
+		mPaint.setColor(Color.parseColor("#003300"));
+		canvas.drawRect(mRectStart, mPaint);
+		canvas.drawRect(mRectEnd, mPaint);
 	}
 
 	@Override
@@ -397,12 +323,20 @@ public class DrawView9 extends View {
 				int touchedY = (int) event.getY();
 				int touchCount = event.getPointerCount();
 
-				oldXvalue = event.getX();
-				oldYvalue = event.getY();
+				oldXvalue = touchedX;
+				oldYvalue = touchedY;
 
 				String msg = ": " + touchedX +" / " + touchedY;
 
 				if ( touchCount == 1 ) {
+
+					if (mRectStart.contains(touchedX, touchedY)) {
+						Toast.makeText(mContext, "mRectStart Hit", Toast.LENGTH_SHORT).show();
+					} else {
+						Toast.makeText(mContext, "mRectStart Miss", Toast.LENGTH_SHORT).show();
+					}
+
+
 					if ( touchedX >= 0 && touchedX < bitmap.getWidth()
 							&& touchedY >= 0 && touchedY < bitmap.getHeight() ) {
 						int pixel = bitmap.getPixel(touchedX, touchedY);
@@ -419,6 +353,14 @@ public class DrawView9 extends View {
 						Log.e("ACTION_DOWN", "====================");
 
 						if ("#00000000".equals(addAlpha)) {
+
+							imgView.setX(mWidth - 50);
+							imgView.setY(50);
+
+							arVertex1.removeAll(arVertex1);
+							arVertex2.removeAll(arVertex2);
+							arVertex3.removeAll(arVertex3);
+							invalidate();
 							break;
 						}
 
@@ -439,10 +381,8 @@ public class DrawView9 extends View {
 				int touchedY = (int) event.getY();
 				int touchCount = event.getPointerCount();
 
-				imageView.setX(event.getRawX() - oldXvalue);
-				imageView.setY(event.getRawY() - (oldYvalue + imageView.getHeight()));
-
-
+//				imgView.setX(event.getRawX() - oldXvalue);
+//				imgView.setY(event.getRawY() - (oldYvalue + imgView.getHeight()));
 
 				Log.e("ACTION_MOVE", "touchedX: " + touchedX + "");
 				Log.e("ACTION_MOVE", "touchedY: " + touchedY + "");
@@ -464,6 +404,10 @@ public class DrawView9 extends View {
 					Log.e("ACTION_MOVE", "====================");
 
 					if ("#00000000".equals(addAlpha)) {
+
+						imgView.setX(mWidth - 50);
+						imgView.setY(50);
+
 						arVertex1.removeAll(arVertex1);
 						arVertex2.removeAll(arVertex2);
 						arVertex3.removeAll(arVertex3);
@@ -471,11 +415,16 @@ public class DrawView9 extends View {
 						break;
 					}
 
-
+					imgView.setX(touchedX);
+					imgView.setY(touchedY);
 
 					arVertex1.add( new Vertex( event.getX(), event.getY() ) );
 					invalidate();
 				} else {
+
+					imgView.setX(mWidth - 50);
+					imgView.setY(50);
+
 					arVertex1.removeAll(arVertex1);
 					arVertex2.removeAll(arVertex2);
 					arVertex3.removeAll(arVertex3);
@@ -490,6 +439,12 @@ public class DrawView9 extends View {
 				int touchedX = (int) event.getX();
 				int touchedY = (int) event.getY();
 				int touchCount = event.getPointerCount();
+
+				if (mRectEnd.contains(touchedX, touchedY)) {
+					Toast.makeText(mContext, "mRectEnd Hit", Toast.LENGTH_SHORT).show();
+				} else {
+					Toast.makeText(mContext, "mRectEnd Miss", Toast.LENGTH_SHORT).show();
+				}
 
 				if ( touchedX >= 0 && touchedX < bitmap.getWidth()
 						&& touchedY >= 0 && touchedY < bitmap.getHeight() ) {
@@ -507,7 +462,16 @@ public class DrawView9 extends View {
 					Log.e("ACTION_UP", "====================");
 
 					if ("#00000000".equals(addAlpha)) {
-						break;
+
+						imgView.setX(mWidth - 50);
+						imgView.setY(50);
+
+						arVertex1.removeAll(arVertex1);
+						arVertex2.removeAll(arVertex2);
+						arVertex3.removeAll(arVertex3);
+						invalidate();
+
+						return false;
 					}
 
 					double section = 2 * pi / sectionNum;
@@ -650,6 +614,14 @@ public class DrawView9 extends View {
 					}
 					Toast.makeText(this.getContext(), str, Toast.LENGTH_SHORT).show();
 					Log.e("test", "=================끝===============");
+				} else {
+					imgView.setX(mWidth - 20);
+					imgView.setY(50);
+
+					arVertex1.removeAll(arVertex1);
+					arVertex2.removeAll(arVertex2);
+					arVertex3.removeAll(arVertex3);
+					invalidate();
 				}
 
 //				float section = 2*pi / sectionNum;

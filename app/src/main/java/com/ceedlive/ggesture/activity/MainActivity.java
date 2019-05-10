@@ -3,7 +3,9 @@ package com.ceedlive.ggesture.activity;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
+import android.widget.Toast;
 
 import com.ceedlive.ggesture.CustomGestureView;
 import com.ceedlive.ggesture.R;
@@ -46,6 +48,13 @@ public class MainActivity extends AppCompatActivity {
                         mButton.setEnabled(isEnabled);
                     }
                 }, 100);
+            }
+        });
+
+        mButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Toast.makeText(getApplicationContext(), "로그인 합니다.", Toast.LENGTH_SHORT).show();
             }
         });
     }

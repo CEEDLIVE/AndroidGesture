@@ -1,4 +1,4 @@
-package com.ceedlive.ggesture.activity;
+package com.ceedlive.ggesture.test_activity;
 
 import android.graphics.Color;
 import android.graphics.Rect;
@@ -9,7 +9,7 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 
-import com.ceedlive.ggesture.DrawLine;
+import com.ceedlive.ggesture.test_view.DrawLine;
 import com.ceedlive.ggesture.R;
 
 import androidx.appcompat.app.AppCompatActivity;

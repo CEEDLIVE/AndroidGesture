@@ -5,11 +5,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.ColorFilter;
 import android.graphics.Matrix;
 import android.graphics.Paint;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
@@ -19,18 +16,19 @@ import android.util.Log;
 import android.view.Display;
 import android.view.MotionEvent;
 import android.view.WindowManager;
-import android.widget.ImageView;
 import android.widget.Toast;
+
+import com.ceedlive.ggesture.util.GraphicsUtil;
 
 import java.util.ArrayList;
 
 import androidx.appcompat.widget.AppCompatImageView;
-import androidx.core.content.ContextCompat;
 
 /**
- * 연속된 직선들을 n 방향으로 구간을 나누어
- * 360도 중에서 해당 구간으로 뻗어 나가는 직선을 인식하여 번호를 부여함으로써
- * 미리 정의된 연속된 번호들과 일치 하는가를 통해 사용자의 입력을 받아 들이는 방식
+ * 연속된 직선들을 n 방향으로 구간을 나누고
+ * 360도 중에서 해당 구간으로 뻗어 나가는 직선을 인식하여 번호를 부여함
+ * 부여된 번호가 미리 정의된 연속된 번호들과 일치 하는지 확인
+ * 확인된 값을 근거로 사용자의 입력을 처리하는 방식
  */
 public class CustomGestureView extends AppCompatImageView {
 
@@ -59,18 +57,13 @@ public class CustomGestureView extends AppCompatImageView {
 
 	private int mDrawableWidth, mDrawableHeight;
 	private int mViewWidth, mViewHeight;
-	private int mRealImageWidth, mRealImageHeight;
 
-	private Rect mRectStart;
-	private Rect mRectIng;
-	private Rect mRectEnd;
-
-	private ColorFilter mColorFilter;
+	private Rect mRectStart, mRectIng, mRectEnd;
 
 	private boolean mIsAuthorized = false;
 	private boolean mIsPassRectIng = false;
-
 	private boolean mDrawing = false;
+
 	private GesturePointerListener mGesturePointerListener;
 
 
@@ -81,6 +74,7 @@ public class CustomGestureView extends AppCompatImageView {
 		this.mGesturePointerListener = listener;
 	}
 
+	// Constructor
 
 	/**
 	 * Java Code 에서 뷰를 생성 할 때 호출되는 생성자
@@ -91,7 +85,7 @@ public class CustomGestureView extends AppCompatImageView {
 		setFocusable(true);
 
 		mContext = context;
-		init_variable();
+		initialize();
 	}
 
 	// you will need the constructor public MyView(Context context, AttributeSet attrs), otherwise you will get an Exception when Android tries to inflate your View.
@@ -105,7 +99,7 @@ public class CustomGestureView extends AppCompatImageView {
 		setFocusable(true);
 
 		mContext = context;
-		init_variable();
+		initialize();
 	}
 
 	// if you add your View from xml and also spcify the android:style attribute like : <com.mypack.MyView style="@styles/MyCustomStyle" />
@@ -121,76 +115,40 @@ public class CustomGestureView extends AppCompatImageView {
 		setFocusable(true);
 
 		mContext = context;
-		init_variable();
+		initialize();
 	}
 
+	// variables
 
-	public void init_variable() {
+	public void initialize() {
 		mPaint = new Paint();// Avoid object allocations during draw/layout operations
 
-		mMatrix = new Matrix();
-
 		mBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.logo_genesis_g);
-		mBitmapPointer = BitmapFactory.decodeResource(getResources(), R.drawable.ic_car_24);
+//		mBitmapPointer = BitmapFactory.decodeResource(getResources(), R.drawable.ic_hyundai_64);
 
-		setImageBitmap(mBitmap);
-//		setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+		mBitmapPointer = GraphicsUtil.getBitmapFromVectorDrawable(mContext, R.drawable.ic_hyundai);
+		mBitmapPointer = GraphicsUtil.getResizedBitmapByScale(mBitmapPointer, 128, 128);
 
-		mDrawable = getDrawable();
-
-		mDrawableWidth = mDrawable.getIntrinsicWidth();
-		mDrawableHeight = mDrawable.getIntrinsicHeight();
-
-		mViewWidth = this.getWidth() - this.getPaddingLeft() - this.getPaddingRight();
-		mViewHeight = this.getHeight() - this.getPaddingTop() - this.getPaddingBottom();
-
-		mRealImageWidth = (int) ( (mViewWidth - mDrawableWidth) * 0.25f );
-		// (I do not know why I had to put 0.25f instead of 0.5f,
-		// but I think this issue is a consequence of the screen density)
-
-		mRealImageHeight = (int) ( (mViewHeight - mDrawableHeight) * 0.25f );
-
-		mWidth = mBitmap.getWidth();
-		mHeight = mBitmap.getHeight();
-
-		mPointerX = mWidth;
-		mPointerY = mHeight;
+		mMatrix = new Matrix();
 
 		arVertex1 = new ArrayList<>();
 		arVertex2 = new ArrayList<>();
 		arVertex3 = new ArrayList<>();
 
+		mWidth = mBitmap.getWidth();
+		mHeight = mBitmap.getHeight();
+
+		setImageBitmap(mBitmap);
+		mDrawable = getDrawable();
+
 		mRectStart = new Rect(mWidth - 300, 0, mWidth, 200); // 사각형 영역을 만든다
 		mRectIng = new Rect(0, mHeight / 2, 300, (mHeight / 2) + 100); // 사각형 영역을 만든다
 		mRectEnd = new Rect(mWidth - 300, mHeight / 2, mWidth, (mHeight / 2) + 100); // 사각형 영역을 만든다
 
-		float density = getDotPerInch(mContext);
-		float dp = getDotPoint(mWidth, density);
-
-		mColorFilter = new PorterDuffColorFilter(ContextCompat.getColor(mContext, android.R.color.white), PorterDuff.Mode.SRC_IN);
-
-		//
-		Log.e("init_variable", "dp: " + dp);
-		Log.e("init_variable", "density: " + density);
-
-		Log.e("init_variable", "mDrawableWidth: " + mDrawableWidth);
-		Log.e("init_variable", "mDrawableHeight: " + mDrawableHeight);
-
-		Log.e("init_variable", "mViewWidth: " + mViewWidth);
-		Log.e("init_variable", "mViewHeight: " + mViewHeight);
-
-		Log.e("init_variable", "mRealImageWidth: " + mRealImageWidth);
-		Log.e("init_variable", "mRealImageHeight: " + mRealImageHeight);
-
-		Log.e("init_variable", "mWidth: " + mWidth);
-		Log.e("init_variable", "mHeight: " + mHeight);
-
-		Log.e("init_variable", "getPaddingLeft: " + this.getPaddingLeft());
-		Log.e("init_variable", "getPaddingRight: " + this.getPaddingRight());
-
-		Log.e("init_variable", "getPaddingTop: " + this.getPaddingTop());
-		Log.e("init_variable", "getPaddingBottom: " + this.getPaddingBottom());
+		initPointerCoordinate();
 	}
+
+	// onDraw
 
 	/**
 	 * 뷰에 그림 그리는 행위를 담당하는 메소드
@@ -200,21 +158,16 @@ public class CustomGestureView extends AppCompatImageView {
 	public void onDraw(Canvas canvas) {
 		super.onDraw(canvas);
 
-		// drawing oval
-//		mPaint.setColor(Color.argb(130, 255, 255, 255));
-//		canvas.drawOval(mRectFEnd, mPaint);
-
-		// drawing rect (for logic check)
+		// 시작점, 중간점, 끝점을 담당하는 투명 사각형 그리기
 		mPaint.setColor(Color.TRANSPARENT);
 		canvas.drawRect(mRectStart, mPaint);
 		canvas.drawRect(mRectIng, mPaint);
 		canvas.drawRect(mRectEnd, mPaint);
 
-		canvas.drawColor(Color.argb(50, 255, 0, 0));
-
-//		mPaint.setColorFilter(mColorFilter);
+		// 터치를 따라 이동하는 포인터 이미지
 		canvas.drawBitmap(mBitmapPointer, mPointerX, mPointerY, null);
 
+		// 터치 이벤트가 시작점, 중간점, 끝점을 적절하게 지나는지 검증
 		if (!mDrawing) {
 			return;
 		}
@@ -243,11 +196,6 @@ public class CustomGestureView extends AppCompatImageView {
 			xStart = (getWidth() - width) / 2;
 		}
 
-		Log.e("onDraw", "calculation width: " + width);
-		Log.e("onDraw", "calculation height: " + height);
-		Log.e("onDraw", "calculation xStart: " + xStart);
-		Log.e("onDraw", "calculation yStart: " + yStart);
-
 		mPaint.setStrokeWidth(12);
 
 		// 사용자가 터치한 직선
@@ -262,9 +210,7 @@ public class CustomGestureView extends AppCompatImageView {
 				mPaint.setAlpha(255);
 			} else {
 				//
-//				mPaint.setColor(Color.BLUE);
 				mPaint.setColor(Color.WHITE);
-//				mPaint.setAlpha(100);
 			}
 
 			// 부드럽게 하기 위해서 원을 추가
@@ -339,11 +285,8 @@ public class CustomGestureView extends AppCompatImageView {
 
 				mBitmap = ((BitmapDrawable) getDrawable()).getBitmap();
 
-//				Matrix inverse = new Matrix();
-//				this.getImageMatrix().invert(inverse);
 				this.getImageMatrix().invert(mMatrix);
 				float[] touchPoint = new float[] {event.getX(), event.getY()};
-//				inverse.mapPoints(touchPoint);
 				mMatrix.mapPoints(touchPoint);
 				int touchedX = (int) touchPoint[0];
 				int touchedY = (int) touchPoint[1];
@@ -360,21 +303,10 @@ public class CustomGestureView extends AppCompatImageView {
 						int intColor = getRgbIntColor(pixel);
 
 						String hexColor = String.format("#%06X", (0xFFFFFF & intColor));
-						String addAlpha = addAlpha(hexColor, alpha);
-
-						Log.e("ACTION_DOWN", "touchedX: " + touchedX);
-						Log.e("ACTION_DOWN", "touchedY: " + touchedY);
-						Log.e("ACTION_DOWN", "intColor: " + intColor);
-						Log.e("ACTION_DOWN", "hexColor: " + hexColor);
-						Log.e("ACTION_DOWN", "addAlpha: " + addAlpha);
-						Log.e("ACTION_DOWN", "====================");
+						String addAlpha = GraphicsUtil.getHexaDecimalColorAddedAlpha(hexColor, alpha);
 
 						if ( !mRectStart.contains(touchedX, touchedY) ) {
-//							initPointer(mImageViewPointer, mWidth - 50, 50);
-							Log.e("ACTION_DOWN", "!!! contains: ");
-//							mGesturePointerListener.onPointerInit(mWidth - 50, 50, this);
-							mPointerX = mWidth;
-							mPointerY = mHeight;
+							initPointerCoordinate();
 
 							arVertex1.clear();
 							arVertex2.clear();
@@ -382,14 +314,9 @@ public class CustomGestureView extends AppCompatImageView {
 							invalidate();// 뷰를 갱신
 							return false;
 						}
-						Log.e("ACTION_DOWN", "contains: ");
 
 						if ( HEX_BACKGROUND_TRANSPARENT.equals(addAlpha) ) {
-//							initPointer(mImageViewPointer, mWidth - 50, 50);
-//							mGesturePointerListener.onPointerInit(mWidth - 50, 50, this);
-
-							mPointerX = mWidth;
-							mPointerY = mHeight;
+							initPointerCoordinate();
 
 							arVertex1.clear();
 							arVertex2.clear();
@@ -410,22 +337,13 @@ public class CustomGestureView extends AppCompatImageView {
 			} // end case
 			// 누르고 움직였을 때
 			case MotionEvent.ACTION_MOVE: {
-				int touchCount = event.getPointerCount();
-
 				mBitmap = ((BitmapDrawable) getDrawable()).getBitmap();
 
-//				Matrix inverse = new Matrix();
-//				this.getImageMatrix().invert(inverse);
 				this.getImageMatrix().invert(mMatrix);
 				float[] touchPoint = new float[] {event.getX(), event.getY()};
-//				inverse.mapPoints(touchPoint);
 				mMatrix.mapPoints(touchPoint);
 				int touchedX = (int) touchPoint[0];
 				int touchedY = (int) touchPoint[1];
-
-				Log.e("ACTION_MOVE", "touchedX: " + touchedX + "");
-				Log.e("ACTION_MOVE", "touchedY: " + touchedY + "");
-				Log.e("ACTION_MOVE", "touchCount: " + touchCount + "");
 
 				if ( touchedX >= 0 && touchedX < mBitmap.getWidth()
 						&& touchedY >= 0 && touchedY < mBitmap.getHeight() ) {
@@ -434,23 +352,14 @@ public class CustomGestureView extends AppCompatImageView {
 					int intColor = getRgbIntColor(pixel);
 
 					String hexColor = String.format("#%06X", (0xFFFFFF & intColor));
-					String addAlpha = addAlpha(hexColor, alpha);
-
-					Log.e("ACTION_MOVE", "intColor: " + intColor);
-					Log.e("ACTION_MOVE", "hexColor: " + hexColor);
-					Log.e("ACTION_MOVE", "addAlpha: " + addAlpha);
-					Log.e("ACTION_MOVE", "====================");
+					String addAlpha = GraphicsUtil.getHexaDecimalColorAddedAlpha(hexColor, alpha);
 
 					if ( mRectIng.contains(touchedX, touchedY) ) {
 						mIsPassRectIng = true;
 					}
 
 					if ( HEX_BACKGROUND_TRANSPARENT.equals(addAlpha) ) {
-//						initPointer(mImageViewPointer, mWidth - 50, 50);
-//						mGesturePointerListener.onPointerInit(mWidth - 50, 50, this);
-
-						mPointerX = mWidth;
-						mPointerY = mHeight;
+						initPointerCoordinate();
 
 						arVertex1.clear();
 						arVertex2.clear();
@@ -460,19 +369,13 @@ public class CustomGestureView extends AppCompatImageView {
 						return false;
 					}
 
-//					mGesturePointerListener.onPointerMove( (int) event.getX(), (int) event.getY(), this );
-
-					mPointerX = touchedX - 50;
-					mPointerY = touchedY - 50;
+					mPointerX = touchedX - 100;
+					mPointerY = touchedY - 100;
 					arVertex1.add( new Vertex( event.getX(), event.getY() ) );
 					invalidate();// 뷰를 갱신
 
 				} else {
-//					initPointer(mImageViewPointer, mWidth - 50, 50);
-//					mGesturePointerListener.onPointerInit(mWidth - 50, 50, this);
-
-					mPointerX = mWidth;
-					mPointerY = mHeight;
+					initPointerCoordinate();
 
 					arVertex1.clear();
 					arVertex2.clear();
@@ -485,15 +388,12 @@ public class CustomGestureView extends AppCompatImageView {
 
 				break;
 			} // end case
-			// 누른걸 땠을 때
+			// 누르고 있던 것을 떼었을 때
 			case MotionEvent.ACTION_UP: {
 				mBitmap = ((BitmapDrawable) getDrawable()).getBitmap();
 
-//				Matrix inverse = new Matrix();
-//				this.getImageMatrix().invert(inverse);
 				this.getImageMatrix().invert(mMatrix);
 				float[] touchPoint = new float[] {event.getX(), event.getY()};
-//				inverse.mapPoints(touchPoint);
 				mMatrix.mapPoints(touchPoint);
 				int touchedX = (int) touchPoint[0];
 				int touchedY = (int) touchPoint[1];
@@ -505,31 +405,22 @@ public class CustomGestureView extends AppCompatImageView {
 					int intColor = getRgbIntColor(pixel);
 
 					String hexColor = String.format("#%06X", (0xFFFFFF & intColor));
-					String addAlpha = addAlpha(hexColor, alpha);
-
-					Log.e("ACTION_UP", "intColor: " + intColor);
-					Log.e("ACTION_UP", "hexColor: " + hexColor);
-					Log.e("ACTION_UP", "addAlpha: " + addAlpha);
-					Log.e("ACTION_UP", "====================");
+					String addAlpha = GraphicsUtil.getHexaDecimalColorAddedAlpha(hexColor, alpha);
 
 					if (!mIsPassRectIng) {
-						Log.e("ACTION_UP", "mIsPassRectIng 통과 XXX");
-//						mGesturePointerListener.onPointerInit(mWidth - 50, 50);
-//						arVertex1.clear();
-//						arVertex2.clear();
-//						arVertex3.clear();
-//						invalidate();// 뷰를 갱신
-//						return false;
+						initPointerCoordinate();
+
+						arVertex1.clear();
+						arVertex2.clear();
+						arVertex3.clear();
+						invalidate();// 뷰를 갱신
+
 						Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
-					} else {
-						Log.e("ACTION_UP", "mIsPassRectIng 통과 O");
+						return false;
 					}
 
 					if ( !mRectEnd.contains(touchedX, touchedY) ) {
-//						mGesturePointerListener.onPointerInit(mWidth - 50, 50, this);
-
-						mPointerX = mWidth;
-						mPointerY = mHeight;
+						initPointerCoordinate();
 
 						arVertex1.clear();
 						arVertex2.clear();
@@ -541,10 +432,7 @@ public class CustomGestureView extends AppCompatImageView {
 					}
 //
 					if ( HEX_BACKGROUND_TRANSPARENT.equals(addAlpha) ) {
-//						mGesturePointerListener.onPointerInit(mWidth - 50, 50, this);
-
-						mPointerX = mWidth;
-						mPointerY = mHeight;
+						initPointerCoordinate();
 
 						arVertex1.clear();
 						arVertex2.clear();
@@ -670,7 +558,7 @@ public class CustomGestureView extends AppCompatImageView {
 						double moveAngle = tempang % section;
 						moveAngle = (moveAngle < (section / 2) ? (section / 2) - moveAngle : (section / 2) - moveAngle);
 
-						if (i == 1) { // 첫번째 직선에대해 보정.
+						if (i == 1) { // 첫번째 직선에 대해 보정.
 							AllmoveAngle = moveAngle;
 						}
 						// 각도로 구역구하기
@@ -693,11 +581,11 @@ public class CustomGestureView extends AppCompatImageView {
 						arVertex3.add(vertex);
 					} // end for each
 
-					Log.e("ACTION_UP", "arVertex1.size(): " + arVertex1.size() + "");
-					Log.e("ACTION_UP", "arVertex2.size(): " + arVertex2.size() + "");
-					Log.e("ACTION_UP", "arVertex3.size(): " + arVertex3.size() + "");
-					Log.e("ACTION_UP", "AllmoveAngle: " + AllmoveAngle + "");
-					Log.e("ACTION_UP", "allLength / arVertex2.size(): " + allLength / arVertex2.size());
+//					Log.e("ACTION_UP", "arVertex1.size(): " + arVertex1.size() + "");
+//					Log.e("ACTION_UP", "arVertex2.size(): " + arVertex2.size() + "");
+//					Log.e("ACTION_UP", "arVertex3.size(): " + arVertex3.size() + "");
+//					Log.e("ACTION_UP", "AllmoveAngle: " + AllmoveAngle + "");
+//					Log.e("ACTION_UP", "allLength / arVertex2.size(): " + allLength / arVertex2.size());
 
 					invalidate();
 
@@ -709,10 +597,11 @@ public class CustomGestureView extends AppCompatImageView {
 							str = str + " -> ";
 						}
 					}
-					Toast.makeText(this.getContext(), str, Toast.LENGTH_SHORT).show();
+//					Toast.makeText(this.getContext(), str, Toast.LENGTH_SHORT).show();
+					Log.e("test", str);
 					Log.e("test", "=================끝===============");
 
-					boolean isValidTouch = arVertex1.size() > 100
+					boolean isValidTouch = arVertex1.size() > 85
 							&& arVertex2.size() > 20
 							&& arVertex3.size() > 10
 //							&& Math.abs( (int) (allAngle * sRtd) ) > 4 // 총 각도
@@ -724,20 +613,21 @@ public class CustomGestureView extends AppCompatImageView {
 
 						mGesturePointerListener.onButtonEnabled(true);
 						Toast.makeText(mContext, "성공", Toast.LENGTH_SHORT).show();
+
+						return false;
 					}
 
-				} else {
-//					initPointer(mImageViewPointer, mWidth - 50, 50);
-//					mGesturePointerListener.onPointerInit(mWidth - 50, 50, this);
+					Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
 
-					mPointerX = mWidth;
-					mPointerY = mHeight;
+				} else {
+					initPointerCoordinate();
 
 					arVertex1.clear();
 					arVertex2.clear();
 					arVertex3.clear();
 					invalidate();// 뷰를 갱신
 
+					Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
 					return false;
 				}
 
@@ -752,15 +642,12 @@ public class CustomGestureView extends AppCompatImageView {
 		return true;
 	}
 
-    /**
-     *
-	 * @param target
-     * @param x
-     * @param y
+	/**
+	 *
 	 */
-	private void initPointer(ImageView target, int x, int y) {
-		target.setX(x);
-		target.setY(y);
+	private void initPointerCoordinate() {
+		mPointerX = mWidth - 150;
+		mPointerY = 0;
 	}
 
 	/**
@@ -821,131 +708,6 @@ public class CustomGestureView extends AppCompatImageView {
 		double radian;
 		float length;
 		int section;
-	}
-
-	/**
-	 * 리스케일된 비트맵 이미지 객체 얻기
-	 * @return
-	 */
-	private Bitmap getScaledBitmap(int resourceId) {
-		try {
-			// 화면 크기 구하기
-			DisplayMetrics metrics = new DisplayMetrics();
-			WindowManager windowManager = (WindowManager) mContext.getSystemService( Context.WINDOW_SERVICE );
-			Display display = windowManager.getDefaultDisplay();
-			display.getMetrics(metrics);
-
-//		int displayWidth = display.getWidth();
-//		int displayHeight = display.getHeight();
-			int displayWidth = metrics.widthPixels;
-			int displayHeight = metrics.heightPixels;
-
-			// 리사이즈할 이미지 크기 구하기
-			BitmapFactory.Options options = new BitmapFactory.Options();
-//		options.inPreferredConfig = Bitmap.Config.RGB_565;
-			options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-			options.inJustDecodeBounds = true;
-			BitmapFactory.decodeResource(getResources(), resourceId, options);
-
-			// 화면 크기에 가장 근접하는 이미지의 리스케일 사이즈를 구한다.
-			float widthScale = options.outWidth / displayWidth;
-			float heightScale = options.outHeight / displayHeight;
-			float scale = widthScale > heightScale ? widthScale : heightScale;
-
-			if (scale >= 8) {
-				options.inSampleSize = 8;
-			} else if (scale >= 4) {
-				options.inSampleSize = 4;
-			} else if (scale >= 2) {
-				options.inSampleSize = 2;
-			} else {
-				options.inSampleSize = 1;
-			}
-			options.inJustDecodeBounds = false;
-
-			return BitmapFactory.decodeResource(getResources(), resourceId, options);
-		} catch (NullPointerException e) {
-			e.printStackTrace();
-		}
-
-		return null;
-	}
-
-	/**
-	 * 알파값이 더해진 hexadecimal color
-	 * @param originalColor color, without alpha
-	 * @param alpha         from 0.0 to 1.0
-	 * @return
-	 */
-	public static String addAlpha(String originalColor, double alpha) {
-		long alphaFixed = Math.round(alpha * 255);
-		String alphaHex = Long.toHexString(alphaFixed);
-		if (alphaHex.length() == 1) {
-			alphaHex = "0" + alphaHex;
-		}
-		originalColor = originalColor.replace("#", "#" + alphaHex);
-		return originalColor;
-	}
-
-	/**
-	 * Project position on ImageView to position on Bitmap
-	 * return the color on the position
-	 * @param iv
-	 * @param bm
-	 * @param x
-	 * @param y
-	 * @return
-	 */
-	private int getProjectedColor(ImageView iv, Bitmap bm, int x, int y) {
-		if ( x<0 || y<0 || x > iv.getWidth() || y > iv.getHeight() ) {
-			// outside ImageView
-//			return color.background_light;
-			return 0;
-		}
-
-		int projectedX = (int) ( (double) x * ( (double) bm.getWidth() / (double) iv.getWidth() ) );
-		int projectedY = (int) ( (double) y * ( (double) bm.getHeight() / (double) iv.getHeight() ) );
-
-		Log.e("getProjectedColor", x + ":" + y + "/" + iv.getWidth() + " : " + iv.getHeight() + "\n" +
-				projectedX + " : " + projectedY + "/" + bm.getWidth() + " : " + bm.getHeight()
-		);
-
-		return bm.getPixel(projectedX, projectedY);
-	}
-
-//	float dpi = context.getResources().getDisplayMetrics().density;
-//	To convert dp to px
-//	float px = dp * dpi;
-//	and to convert px to dp
-//	float dp = px/dpi;
-
-	/**
-	 * get dpi: dot per inch
-	 * @param context
-	 * @return
-	 */
-	private float getDotPerInch(Context context) {
-		DisplayMetrics metrics = new DisplayMetrics();
-		WindowManager windowManager = (WindowManager) context.getSystemService( Context.WINDOW_SERVICE );
-		Display display = windowManager.getDefaultDisplay();
-		display.getMetrics(metrics);
-		return metrics.density;
-	}
-
-	/**
-	 *
-	 * @param pixel
-	 * @param dpi
-	 * @return
-	 */
-	private float getDotPoint(float pixel, float dpi) {
-		float dp;
-		try {
-			dp = pixel / dpi;
-		} catch (ArithmeticException e) {
-			return -1;
-		}
-		return dp;
 	}
 
 }

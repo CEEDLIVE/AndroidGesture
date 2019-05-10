@@ -1,4 +1,4 @@
-package com.ceedlive.ggesture.activity;
+package com.ceedlive.ggesture.test_activity;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -14,7 +14,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.Toast;
 
-import com.ceedlive.ggesture.DrawView9;
+import com.ceedlive.ggesture.test_view.DrawView9;
 import com.ceedlive.ggesture.R;
 
 import androidx.appcompat.app.AppCompatActivity;

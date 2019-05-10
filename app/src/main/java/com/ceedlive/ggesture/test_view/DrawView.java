@@ -1,4 +1,4 @@
-package com.ceedlive.ggesture;
+package com.ceedlive.ggesture.test_view;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -7,17 +7,14 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
-import android.os.Build;
 import android.util.Log;
 import android.view.Display;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.ImageView;
-import android.widget.TextView;
 import android.widget.Toast;
 
-import java.util.ArrayList;
+import com.ceedlive.ggesture.R;
 
 /**
  * 연속된 직선들을 n 방향으로 구간을 나누어
