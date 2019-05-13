@@ -15,7 +15,7 @@ import androidx.appcompat.app.AppCompatActivity;
 public class MainActivity extends AppCompatActivity {
 
     private CustomGestureView mCustomGestureView;
-    private Button mButton;
+    private Button mButtonQuit;
 
     private Handler mHandler;
 
@@ -27,17 +27,19 @@ public class MainActivity extends AppCompatActivity {
 //        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
 //                WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
-        setContentView(R.layout.activity_gesture);
-        initialize();
+//        setContentView(R.layout.activity_gesture);
+//        initialize();
+
+        setContentView(R.layout.motion_g);
     }
 
     private void initialize() {
         mHandler = new Handler();
 
         mCustomGestureView = findViewById(R.id.cv_gesture);// 커스텀뷰 (캔버스)
-        mButton = findViewById(R.id.btn_login);// 로그인 버튼 (버튼)
+        mButtonQuit = findViewById(R.id.btn_quit);// 종료 버튼 (버튼)
 
-        mButton.setEnabled(false);
+        mButtonQuit.setEnabled(false);
         mCustomGestureView.gesturePointerCallback(new CustomGestureView.GesturePointerListener() {
             @Override
             public void onButtonEnabled(final boolean isEnabled) {
@@ -45,16 +47,16 @@ public class MainActivity extends AppCompatActivity {
                 mHandler.postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        mButton.setEnabled(isEnabled);
+                        mButtonQuit.setEnabled(isEnabled);
                     }
                 }, 100);
             }
         });
 
-        mButton.setOnClickListener(new View.OnClickListener() {
+        mButtonQuit.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Toast.makeText(getApplicationContext(), "로그인 합니다.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getApplicationContext(), "이전 화면으로 이동 합니다.", Toast.LENGTH_SHORT).show();
             }
         });
     }
