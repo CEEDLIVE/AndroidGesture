@@ -1,6 +1,7 @@
 package com.ceedlive.ggesture.util;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -247,6 +248,16 @@ public class GraphicsUtil {
             return -1;
         }
         return dp;
+    }
+
+    public static float getPixel(Resources res, float density, float dp) {
+        if (density < 0) {
+            density = res.getDisplayMetrics().density;
+        }
+
+        float px = dp * density;
+
+        return px;
     }
 
 }

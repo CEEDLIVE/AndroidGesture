@@ -33,6 +33,7 @@
                 android:layout_width="64dp"
                 android:layout_height="64dp"
                 android:layout_marginStart="8dp"
+                android:layout_marginBottom="64dp"
                 android:text="Button"
                 motion:layout_constraintBottom_toBottomOf="parent"
                 motion:layout_constraintEnd_toEndOf="parent"
@@ -49,7 +50,6 @@
                 android:layout_width="64dp"
                 android:layout_height="64dp"
                 android:layout_marginEnd="8dp"
-                android:layout_marginTop="128dp"
                 android:text="Button"
                 motion:layout_constraintBottom_toBottomOf="parent"
                 motion:layout_constraintEnd_toEndOf="parent"
@@ -62,23 +62,73 @@
 
         <KeyFrameSet>
 
+            <KeyAttribute
+                android:scaleX="2"
+                android:scaleY="2"
+                android:rotation="-45"
+                motion:framePosition="1"
+                motion:motionTarget="@id/motion_button" />
+
             <KeyPosition
-                motion:keyPositionType="pathRelative"
-                motion:percentX="0.75"
-                motion:percentY="-0.3"
-                motion:framePosition="25"
+                motion:drawPath="asConfigured"
+                motion:keyPositionType="parentRelative"
+                motion:pathMotionArc="startVertical"
+                motion:percentX="-0.25"
+                motion:percentY="-0.25"
+                motion:framePosition="1"
                 motion:motionTarget="@id/motion_button"/>
+
             <KeyPosition
-                motion:keyPositionType="pathRelative"
-                motion:percentY="-0.4"
-                motion:framePosition="50"
+                motion:drawPath="asConfigured"
+                motion:keyPositionType="parentRelative"
+                motion:pathMotionArc="startVertical"
+                motion:percentX="0.5"
+                motion:percentY="1"
+                motion:framePosition="2"
                 motion:motionTarget="@id/motion_button"/>
+
             <KeyPosition
-                motion:keyPositionType="pathRelative"
+                motion:drawPath="asConfigured"
+                motion:keyPositionType="parentRelative"
+                motion:pathMotionArc="startVertical"
                 motion:percentX="0.25"
-                motion:percentY="-0.3"
-                motion:framePosition="75"
+                motion:percentY="0.75"
+                motion:framePosition="3"
                 motion:motionTarget="@id/motion_button"/>
+
+            <KeyPosition
+                motion:drawPath="asConfigured"
+                motion:keyPositionType="parentRelative"
+                motion:pathMotionArc="startVertical"
+                motion:percentX="0"
+                motion:percentY="0.5"
+                motion:framePosition="4"
+                motion:motionTarget="@id/motion_button"/>
+
+            <!--<KeyPosition-->
+                <!--motion:drawPath="asConfigured"-->
+                <!--motion:pathMotionArc="startVertical"-->
+                <!--motion:keyPositionType="parentRelative"-->
+                <!--motion:percentX="-0.25"-->
+                <!--motion:percentY="0.25"-->
+                <!--motion:framePosition="1"-->
+                <!--motion:motionTarget="@id/motion_button" />-->
+
+            <!--<KeyPosition-->
+                <!--motion:drawPath="asConfigured"-->
+                <!--motion:keyPositionType="parentRelative"-->
+                <!--motion:percentX="-1"-->
+                <!--motion:percentY="-1"-->
+                <!--motion:framePosition="2"-->
+                <!--motion:motionTarget="@id/motion_button" />-->
+
+            <!--<KeyPosition-->
+                <!--motion:drawPath="asConfigured"-->
+                <!--motion:keyPositionType="parentRelative"-->
+                <!--motion:percentX="0.25"-->
+                <!--motion:percentY="-0.25"-->
+                <!--motion:framePosition="3"-->
+                <!--motion:motionTarget="@id/motion_button" />-->
 
         </KeyFrameSet>
     </Transition>
