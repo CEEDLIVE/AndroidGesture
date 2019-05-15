@@ -17,9 +17,10 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.widget.Toast;
 
-import com.ceedlive.ggesture.util.GraphicsUtil;
+import com.ceedlive.ggesture.util.CustomUtil;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import androidx.appcompat.widget.AppCompatImageView;
 
@@ -50,61 +51,60 @@ public class CustomGestureView extends AppCompatImageView {
 
 	private Paint mPaint;
 
-//	static final double sPi = 3.14159265358979;
-	static final double sPi = Math.PI;
+	static final double sPi = Math.PI; // 파이, 3.14159265358979323846
 	static final float sRtd = 57.29577951f;
 	static final float sSectionNum = 32; // 방향성 개수 (연속된 직선들을 n 방향으로 구간을 나눔)
 	static final double sRoundMinAngle = 2 * sPi * 11/12;
 
-    private ArrayList<Vertex> arVertex1; // 사용자가 터치한 직선
-    private ArrayList<Vertex> arVertex2; // 1차 보간된 선분
-    private ArrayList<Vertex> arVertex3; // 최종 인식된 고정직선
+    private ArrayList<Vertex> arrVertex1; // 점의 연속: 사용자가 터치한 직선
+    private ArrayList<Vertex> arrVertex2; // 점의 연속: 1차 보간된 선분
+    private ArrayList<Vertex> arrVertex3; // 점의 연속: 최종 인식된 고정직선
 
 	static final String HEX_BACKGROUND_TRANSPARENT = "#00000000";
 
-	private Bitmap mBitmap, mPathBitmap;
+	private Bitmap mGShapeBitmap, mPathBitmap;
 
 	private Matrix mMatrix;
 
 	private Context mContext;
 
 	private int mWidth, mHeight;
-	private int mPointerX, mPointerY;
 
 	private Rect mRectStart, mRectIng1, mRectIng2, mRectEnd;
+	private RectF mPathRectF;
 
-	private boolean mIsAuthorized = false;
-	private boolean mIsPassRectIng1 = false;
-	private boolean mIsPassRectIng2 = false;
-	private boolean mDrawing = false;
+	private boolean mIsAuthorized, mIsPassRectIng1, mIsPassRectIng2, mIsDrawing;
 
-	private float mDpi;
-	private int mMaxResolution = 1280;
-
+	static final int mMaxResolution = 1280;
 
 	private Path mAnimPath;
 	private PathMeasure mPathMeasure;
 	private float mPathLength;
-	private Paint mAnimPaint;
+	private Paint mPathPaint;
 
-	// 시작점
-	private float[] mPointStart;
-	private float[] mPointEnd;
+	private int mPathBitmapOffsetX, mPathBitmapOffsetY;
 
+	private float mDistanceEachStep; // distance each step
+	private float mDistanceMoved; // distance moved
 
-	// 끝점
-
-
-	private Bitmap bm;
-	private int bm_offsetX, bm_offsetY;
-
-	private float mDistanceEachStep;   //distance each step
-	private float distance;  //distance moved
-
-	private float[] pos;
-	private float[] tan;
+	private float[] mPathPos;
+	private float[] mPathTan;
 
 	private Matrix mPathMatrix;
+
+	private int mPathRectFWeight;
+	private float mPathDegrees;
+
+	private int mMotionEventPointerCount;
+	private int mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY;
+	private int mMotionEventCurrentPixel;
+	private int mMotionEventCurrentAlpha;
+	private int mMotionEventCurrentRgbIntColor;
+	private String mMotionEventCurrentHexColor;
+	private String mMotionEventCurrentHexColorAddedAlpha;
+
+	private List<Rect> mValidationRectLIst;
+
 
 	private GesturePointerListener mGesturePointerListener;
 
@@ -116,7 +116,9 @@ public class CustomGestureView extends AppCompatImageView {
 		this.mGesturePointerListener = listener;
 	}
 
+	// ====================
 	// Constructor
+	// ====================
 
 	/**
 	 * Java Code 에서 뷰를 생성 할 때 호출되는 생성자
@@ -161,89 +163,88 @@ public class CustomGestureView extends AppCompatImageView {
 		initialize();
 	}
 
+	// ====================
 	// variables
+	// ====================
 
 	public void initialize() {
-		mPaint = new Paint();// Avoid object allocations during draw/layout operations
-		mAnimPaint = new Paint();
 
-		mDpi = GraphicsUtil.getDotPerInch(mContext);
+		// init variables
+		{
+			mPaint = new Paint();// Avoid object allocations during draw/layout operations
+			mPathPaint = new Paint();
+			mMatrix = new Matrix();
+			mPathMatrix = new Matrix();
 
-		mBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.google_icon_nopad_circle);
-		mBitmap = GraphicsUtil.getResizedBitmapByResolution(mBitmap, mMaxResolution);
+			arrVertex1 = new ArrayList<>();
+			arrVertex2 = new ArrayList<>();
+			arrVertex3 = new ArrayList<>();
 
-		mPathBitmap = GraphicsUtil.getBitmapFromVectorDrawable(mContext, R.drawable.ic_happy);
-		mPathBitmap = GraphicsUtil.getResizedBitmapByScale(mPathBitmap, 256, 256);
+			mAnimPath = new Path();
+			mPathMeasure = new PathMeasure();
 
-		mMatrix = new Matrix();
+			mPathRectF = new RectF();
+		}
 
-		arVertex1 = new ArrayList<>();
-		arVertex2 = new ArrayList<>();
-		arVertex3 = new ArrayList<>();
+		// set a bitmap g shape
+		{
+			mGShapeBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.google_icon_nopad_circle);
+			mGShapeBitmap = CustomUtil.getResizedBitmapByResolution(mGShapeBitmap, mMaxResolution);
+			mWidth = mGShapeBitmap.getWidth();
+			mHeight = mGShapeBitmap.getHeight();
+			setImageBitmap(mGShapeBitmap);
+		}
 
-		mWidth = mBitmap.getWidth();
-		mHeight = mBitmap.getHeight();
+		// set a bitmap path pointer
+		{
+			mPathBitmap = CustomUtil.getBitmapFromVectorDrawable(mContext, R.drawable.ic_happy);
+			mPathBitmap = CustomUtil.getResizedBitmapByScale(mPathBitmap, 256, 256);
+			mPathBitmapOffsetX = mPathBitmap.getWidth() / 2;
+			mPathBitmapOffsetY = mPathBitmap.getHeight() / 2;
+		}
 
-		setImageBitmap(mBitmap);
+		// set validation rect
+		{
+			mRectStart = new Rect(mWidth - 550, 0, mWidth - 200, 350); // 사각형 영역을 만든다
+			mRectIng1 = new Rect(0, (mHeight / 2) - 200, 400, (mHeight / 2) + 200); // 사각형 영역을 만든다
+			mRectIng2 = new Rect(mWidth - 400, (mHeight / 2) - 200, mWidth, (mHeight / 2) + 200); // 사각형 영역을 만든다
+			mRectEnd = new Rect(mWidth - 800, (mHeight / 2) - 200, mWidth - 400, (mHeight / 2) + 200); // 사각형 영역을 만든다
 
-		mPointStart = new float[2];
-		mPointEnd = new float[2];
+			mValidationRectLIst = new ArrayList<>();
 
-		mPointStart[0] = (float) (mWidth * 0.75);
-		mPointStart[1] = (float) (mHeight * 0.25);
+			mValidationRectLIst.add(mRectStart);
+			mValidationRectLIst.add(mRectIng1);
+			mValidationRectLIst.add(mRectIng2);
+			mValidationRectLIst.add(mRectEnd);
+		}
 
-		mPointEnd[0] = mWidth / 2;
-		mPointEnd[1] = mHeight / 2;
+		// set path
+		{
+			mDistanceEachStep = 10; // 패스 위를 움직이는 이미지의 이동속도
+			mDistanceMoved = 0;
+			mPathPos = new float[2];
+			mPathTan = new float[2];
 
-		Log.e("init_variable", "mPointStart[0]: " + mPointStart[0]);
-		Log.e("init_variable", "mPointStart[1]: " + mPointStart[1]);
-		Log.e("init_variable", "mPointEnd[0]: " + mPointEnd[0]);
-		Log.e("init_variable", "mPointEnd[1]: " + mPointEnd[1]);
+			mPathRectFWeight = 150;// 가변
+			mPathRectF.set(0 + mPathRectFWeight, 0 + mPathRectFWeight, mWidth - mPathRectFWeight, mHeight - mPathRectFWeight);
+			mAnimPath.arcTo(mPathRectF, -45f, -315f);
+			mAnimPath.lineTo(mWidth / 2, mHeight / 2);
+			mAnimPath.close();
 
-		// ========================================
+			mPathMeasure = new PathMeasure(mAnimPath, false);
+			mPathLength = mPathMeasure.getLength();
+		}
 
-		mRectStart = new Rect(mWidth - 550, 0, mWidth - 200, 350); // 사각형 영역을 만든다
-		mRectIng1 = new Rect(0, (mHeight / 2) - 200, 400, (mHeight / 2) + 200); // 사각형 영역을 만든다
-		mRectIng2 = new Rect(mWidth - 400, (mHeight / 2) - 200, mWidth, (mHeight / 2) + 200); // 사각형 영역을 만든다
-		mRectEnd = new Rect(mWidth - 800, (mHeight / 2) - 200, mWidth - 400, (mHeight / 2) + 200); // 사각형 영역을 만든다
+		// set default flag
+		{
+			mIsAuthorized = false; // 접근 권한
+			mIsPassRectIng1 = false; // 첫 번째 영역 통과
+			mIsPassRectIng2 = false; // 두 번째 영역 통과
+			mIsDrawing = false; // onDraw 메서드 전체 실행 여부
+		}
 
-		mAnimPath = new Path();
-		mPathMeasure = new PathMeasure();
-
-//		initPointerCoordinate();
-
-
-
-		bm = BitmapFactory.decodeResource(getResources(), R.drawable.ic_hyundai_64);
-		bm_offsetX = mPathBitmap.getWidth() / 2;
-		bm_offsetY = mPathBitmap.getHeight() / 2;
-
-		initPath();
-		distance();
-	}
-
-	private void initPath() {
-		mDistanceEachStep = 10; // ?
-		distance = 0;
-		pos = new float[2];
-		tan = new float[2];
-
-		mPathMatrix = new Matrix();
-
-		RectF oval = new RectF();
-		int weight = 150;// 가변
-		oval.set(0 + weight, 0 + weight, mWidth - weight, mHeight - weight);
-
-		mAnimPath.arcTo(oval, -45f, -315f);
-		mAnimPath.lineTo(mWidth / 2, mHeight / 2);
-
-		mAnimPath.close();
-
-		mPathMeasure = new PathMeasure(mAnimPath, false);
-		mPathLength = mPathMeasure.getLength();
-
-		Log.e("initPath", "mPathLength: " + mPathLength);
-	}
+		initMotionTouchEvent();
+	} // end method initialize
 
 	// onDraw
 
@@ -255,143 +256,171 @@ public class CustomGestureView extends AppCompatImageView {
 	public void onDraw(Canvas canvas) {
 		super.onDraw(canvas);
 
-		mAnimPaint.setColor(Color.TRANSPARENT);
-		mAnimPaint.setStrokeWidth(5f);
-		mAnimPaint.setStyle(Paint.Style.STROKE);
+		// 문자 모양의 G 내부를 한붓 그리기로 통과하는 패스 생성
+		drawGShapePath(canvas, mPathPaint, mAnimPath);
 
-		canvas.drawPath(mAnimPath, mAnimPaint);
-
-		// 시작점, 중간점, 끝점을 담당하는 투명 사각형 그리기
-		mPaint.setColor(Color.TRANSPARENT);
-		canvas.drawRect(mRectStart, mPaint);
-		canvas.drawRect(mRectIng1, mPaint);
-		canvas.drawRect(mRectIng2, mPaint);
-		canvas.drawRect(mRectEnd, mPaint);
-
-		// 터치를 따라 이동하는 포인터 이미지 (old)
-//		canvas.drawBitmap(mPathBitmap, mPointerX, mPointerY, null);
+		// 시작점, 중간점, 끝점을 포함하는 투명 사각형 영역 그리기
+		drawValidationRect(canvas, mPaint, mValidationRectLIst);
 
 		// 터치를 따라 이동하는 포인터 이미지 (new)
-		if (distance < mPathLength) {
+		if (mDistanceMoved < mPathLength) {
 			canvas.drawBitmap(mPathBitmap, mPathMatrix, null);
 		}
 
-		// 터치 이벤트가 시작점, 중간점, 끝점을 적절하게 지나는지 검증
-		if (!mDrawing) {
+		// 터치 이벤트가 시작점, 중간점, 끝점을 적절하게 지나는지 체크하여 하단 코드 실행 여부 결정
+		if (!mIsDrawing) {
 			return;
 		}
 
-		mIsAuthorized = false;
-		mGesturePointerListener.onButtonEnabled(false);
+		mIsAuthorized = false; // 접근 권한 없음
+		mGesturePointerListener.onButtonEnabled(false); // 버튼 비활성화
 
 		mPaint.setFilterBitmap(true);
-
-		float canvasRate = (float) getWidth() / getHeight();
-		float bitmapRate = (float) mBitmap.getWidth() / mBitmap.getHeight();
-
-		float width, height;	// drawn width & height
-		float xStart, yStart;	// start point (left top)
-
-		// calculation process to fit bitmap in canvas
-		if (canvasRate < bitmapRate) { // canvas is vertically long
-			width  = getWidth();
-			height = width / bitmapRate;
-			xStart = 0;
-			yStart = (getHeight() - height) / 2;
-		} else { // canvas is horizontally wide
-			height = getHeight();
-			width  = height * bitmapRate;
-			yStart = 0;
-			xStart = (getWidth() - width) / 2;
-		}
-
 		mPaint.setStrokeWidth(12);
 
-		// 사용자가 터치한 직선
-		for (int i=1; i<arVertex1.size(); i++) {
-			if (i == 1) {
-				//
-				mPaint.setColor(Color.BLACK);
-				mPaint.setAlpha(255);
-			} else if ( i == arVertex1.size() - 1 ) {
-				//
-				mPaint.setColor(Color.RED);
-				mPaint.setAlpha(255);
-			} else {
-				//
-				mPaint.setColor(Color.WHITE);
-			}
-
-			// FIXME
-			mPaint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
-
-			// 부드럽게 하기 위해서 원을 추가
-			canvas.drawCircle(arVertex1.get(i-1).x, arVertex1.get(i-1).y, 3, mPaint);
-			canvas.drawLine(arVertex1.get(i-1).x, arVertex1.get(i-1).y, arVertex1.get(i).x, arVertex1.get(i).y, mPaint);
-			canvas.drawCircle(arVertex1.get(i).x, arVertex1.get(i).y, 3, mPaint);
-		}
+		// 사용자가 터치한 직선 렌더링
+		drawUserTouchedLine(canvas, mPaint, arrVertex1);
 
 		mPaint.setStrokeWidth(6);
 
-		// 1차 보간된 선분
-		for (int i=1; i<arVertex2.size(); i++) {
+		// 1차 보간된 선분 렌더링
+		drawInterpolationLine(canvas, mPaint, arrVertex2);
+
+		// 최종 인식된 고정직선 렌더링
+		drawFinalRecognizedLine(canvas, mPaint, arrVertex2);
+
+	} // end method onDraw
+
+	/**
+	 * 문자 모양의 G 내부를 한붓 그리기로 통과하는 패스 생성
+	 * @param canvas
+	 * @param paint
+	 * @param path
+	 */
+	private void drawGShapePath(Canvas canvas, Paint paint, Path path) {
+		paint.setColor(Color.TRANSPARENT);
+		paint.setStrokeWidth(5f);
+		paint.setStyle(Paint.Style.STROKE);
+		canvas.drawPath(path, paint);
+	}
+
+	/**
+	 * 시작점, 중간점, 끝점을 포함하는 투명 사각형 영역 그리기
+	 * @param canvas
+	 * @param paint
+	 * @param rectList
+	 */
+	private void drawValidationRect(Canvas canvas, Paint paint, List<Rect> rectList) {
+		paint.setColor(Color.TRANSPARENT);
+		for (Rect rect : rectList) {
+			canvas.drawRect(rect, paint);
+		}
+	}
+
+	/**
+	 * 사용자가 터치한 직선
+	 * @param canvas
+	 * @param paint
+	 * @param vertexArrayList
+	 */
+	private void drawUserTouchedLine(Canvas canvas, Paint paint, ArrayList<Vertex> vertexArrayList) {
+		for (int i=1; i<vertexArrayList.size(); i++) {
+			if (i == 1) {
+				//
+				paint.setColor(Color.BLACK);
+				paint.setAlpha(255);
+			} else if ( i == vertexArrayList.size() - 1 ) {
+				//
+				paint.setColor(Color.RED);
+				paint.setAlpha(255);
+			} else {
+				//
+				paint.setColor(Color.WHITE);
+			}
+
+			// FIXME
+			paint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+
 			// 부드럽게 하기 위해서 원을 추가
-			float x1 = arVertex2.get(i-1).x;
-			float y1 = arVertex2.get(i-1).y;
-			float x2 = arVertex2.get(i).x;
-			float y2 = arVertex2.get(i).y;
+			canvas.drawCircle(vertexArrayList.get(i-1).x, vertexArrayList.get(i-1).y, 3, paint);
+			canvas.drawLine(vertexArrayList.get(i-1).x, vertexArrayList.get(i-1).y, vertexArrayList.get(i).x, vertexArrayList.get(i).y, paint);
+			canvas.drawCircle(vertexArrayList.get(i).x, vertexArrayList.get(i).y, 3, paint);
+		}
+	}
+
+	/**
+	 * 1차 보간된 선분
+	 * @param canvas
+	 * @param paint
+	 * @param vertexArrayList
+	 *
+	 * 보간공식: 변량의 아는 값을 이용해서 그 사이에 놓일 값을 근사치로 계산하는 공식.
+	 */
+	private void drawInterpolationLine(Canvas canvas, Paint paint, ArrayList<Vertex> vertexArrayList) {
+		for (int i=1; i<vertexArrayList.size(); i++) {
+			// 부드럽게 하기 위해서 원을 추가
+			float x1 = vertexArrayList.get(i-1).x;
+			float y1 = vertexArrayList.get(i-1).y;
+			float x2 = vertexArrayList.get(i).x;
+			float y2 = vertexArrayList.get(i).y;
 			float movePos = 25.f;
 			x1 += movePos;
 			y1 += movePos;
 			x2 += movePos;
 			y2 += movePos;
-			mPaint.setColor(Color.GREEN);
+			paint.setColor(Color.GREEN);
 
 			// FIXME
-			mPaint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+			paint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
 
-			mPaint.setAlpha(120);
-			canvas.drawLine(x1, y1, x2, y2, mPaint);
-			mPaint.setAlpha(250);
-			canvas.drawCircle(x2, y2, 3, mPaint);
-			mPaint.setAlpha(250);
-			canvas.drawCircle(x1, y1, 3, mPaint);
+			paint.setAlpha(120);
+			canvas.drawLine(x1, y1, x2, y2, paint);
+			paint.setAlpha(250);
+			canvas.drawCircle(x2, y2, 3, paint);
+			paint.setAlpha(250);
+			canvas.drawCircle(x1, y1, 3, paint);
 		}
+	}
 
-		// 최종 인식된 고정직선
-		for (int i=0; i<arVertex3.size(); i++) {
+	/**
+	 * 최종 인식된 고정직선
+	 * @param canvas
+	 * @param paint
+	 * @param vertexArrayList
+	 */
+	private void drawFinalRecognizedLine(Canvas canvas, Paint paint, ArrayList<Vertex> vertexArrayList) {
+		for (int i=0; i<vertexArrayList.size(); i++) {
 			// 부드럽게 하기 위해서 원을 추가
-			mPaint.setAlpha(250);
-			float x1 = arVertex3.get(i).x;
-			float y1 = arVertex3.get(i).y;
-			float x2 = x1 + arVertex3.get(i).length * (float) Math.cos(arVertex3.get(i).radian);
-			float y2 = y1 + (arVertex3.get(i).length * (float) Math.sin(arVertex3.get(i).radian));
+			paint.setAlpha(250);
+			float x1 = vertexArrayList.get(i).x;
+			float y1 = vertexArrayList.get(i).y;
+			float x2 = x1 + vertexArrayList.get(i).length * (float) Math.cos(vertexArrayList.get(i).radian);
+			float y2 = y1 + (vertexArrayList.get(i).length * (float) Math.sin(vertexArrayList.get(i).radian));
 			float movePos = 50.f;
 			x1 += movePos;
 			y1 += movePos;
 			x2 += movePos;
 			y2 += movePos;
 
-			mPaint.setColor(Color.GRAY);
+			paint.setColor(Color.GRAY);
 
 			// FIXME
-			mPaint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+			paint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
 
-			canvas.drawLine(x1, y1, x2, y2, mPaint);
-			mPaint.setColor(Color.RED);
-
-			// FIXME
-			mPaint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
-
-			canvas.drawCircle(x2, y2, 3, mPaint);
-			mPaint.setColor(Color.BLACK);
+			canvas.drawLine(x1, y1, x2, y2, paint);
+			paint.setColor(Color.RED);
 
 			// FIXME
-			mPaint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+			paint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
 
-			canvas.drawCircle(x1, y1, 3, mPaint);
+			canvas.drawCircle(x2, y2, 3, paint);
+			paint.setColor(Color.BLACK);
+
+			// FIXME
+			paint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+
+			canvas.drawCircle(x1, y1, 3, paint);
 		}
-
 	}
 
 	/**
@@ -401,470 +430,411 @@ public class CustomGestureView extends AppCompatImageView {
 	 */
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
-
 		// 터치한 곳의 좌표 읽어오기
 		switch ( event.getAction() ) {
 			// 처음 눌렸을 때
 			case MotionEvent.ACTION_DOWN: {
-				int touchCount = event.getPointerCount();
-
-				mBitmap = ((BitmapDrawable) getDrawable()).getBitmap();
-
-				this.getImageMatrix().invert(mMatrix);
-				float[] touchPoint = new float[] {event.getX(), event.getY()};
-				mMatrix.mapPoints(touchPoint);
-				int touchedX = (int) touchPoint[0];
-				int touchedY = (int) touchPoint[1];
-
-				// single touch
-				if ( touchCount == 1 ) {
-
-					mDrawing = true;
-
-					if ( touchedX >= 0 && touchedX < mBitmap.getWidth()
-							&& touchedY >= 0 && touchedY < mBitmap.getHeight() ) {
-						int pixel = mBitmap.getPixel(touchedX, touchedY);
-						int alpha = Color.alpha(pixel);
-						int intColor = getRgbIntColor(pixel);
-
-						String hexColor = String.format("#%06X", (0xFFFFFF & intColor));
-						String addAlpha = GraphicsUtil.getHexaDecimalColorAddedAlpha(hexColor, alpha);
-
-						distance();
-
-						if ( !mRectStart.contains(touchedX, touchedY) ) {
-//							initPointerCoordinate();
-
-							arVertex1.clear();
-							arVertex2.clear();
-							arVertex3.clear();
-
-							invalidate();// 뷰를 갱신
-							return false;
-						}
-
-						if ( HEX_BACKGROUND_TRANSPARENT.equals(addAlpha) ) {
-//							initPointerCoordinate();
-
-							arVertex1.clear();
-							arVertex2.clear();
-							arVertex3.clear();
-
-							invalidate();// 뷰를 갱신
-							return false;
-						}
-
-						arVertex1.clear();
-						arVertex2.clear();
-						arVertex3.clear();
-						arVertex1.add( new Vertex( touchedX, touchedY ) );
-					}
-				}
-
-				return true;
-
+				handleTouchDown(event);
+				break;
 			} // end case
 			// 누르고 움직였을 때
 			case MotionEvent.ACTION_MOVE: {
-				mBitmap = ((BitmapDrawable) getDrawable()).getBitmap();
-
-				this.getImageMatrix().invert(mMatrix);
-				float[] touchPoint = new float[] {event.getX(), event.getY()};
-				mMatrix.mapPoints(touchPoint);
-				int touchedX = (int) touchPoint[0];
-				int touchedY = (int) touchPoint[1];
-
-				if ( touchedX >= 0 && touchedX < mBitmap.getWidth()
-						&& touchedY >= 0 && touchedY < mBitmap.getHeight() ) {
-					int pixel = mBitmap.getPixel(touchedX, touchedY);
-					int alpha = Color.alpha(pixel);
-					int intColor = getRgbIntColor(pixel);
-
-					String hexColor = String.format("#%06X", (0xFFFFFF & intColor));
-					String addAlpha = GraphicsUtil.getHexaDecimalColorAddedAlpha(hexColor, alpha);
-
-					if ( mRectIng1.contains(touchedX, touchedY) ) {
-						mIsPassRectIng1 = true;
-					}
-
-					if ( mRectIng2.contains(touchedX, touchedY) ) {
-						mIsPassRectIng2 = true;
-					}
-
-					if ( HEX_BACKGROUND_TRANSPARENT.equals(addAlpha) ) {
-//						initPointerCoordinate();
-
-						arVertex1.clear();
-						arVertex2.clear();
-						arVertex3.clear();
-
-						distance();
-
-						invalidate();// 뷰를 갱신
-
-						return false;
-					}
-
-
-					// ==================== TEST START
-
-					if (distance < mPathLength) {
-						mPathMeasure.getPosTan(distance, pos, tan);
-
-						mPathMatrix.reset();
-						float degrees = (float) (Math.atan2(tan[1], tan[0]) * 180.0 / Math.PI);
-						mPathMatrix.postRotate(degrees, bm_offsetX, bm_offsetY);
-						mPathMatrix.postTranslate(pos[0] - bm_offsetX, pos[1] - bm_offsetY);
-
-						distance += mDistanceEachStep;
-					} else {
-						distance = 0;
-					}
-
-					// ==================== TEST END
-
-
-					mPointerX = touchedX - 100;
-					mPointerY = touchedY - 100;
-					arVertex1.add( new Vertex( event.getX(), event.getY() ) );
-					invalidate();// 뷰를 갱신
-
-				} else {
-//					initPointerCoordinate();
-
-					arVertex1.clear();
-					arVertex2.clear();
-					arVertex3.clear();
-
-					distance();
-
-					invalidate();// 뷰를 갱신
-
-					return false;
-				}
-
+				handleTouchMove(event);
 				break;
 			} // end case
 			// 누르고 있던 것을 떼었을 때
 			case MotionEvent.ACTION_UP: {
-				mBitmap = ((BitmapDrawable) getDrawable()).getBitmap();
-
-				this.getImageMatrix().invert(mMatrix);
-				float[] touchPoint = new float[] {event.getX(), event.getY()};
-				mMatrix.mapPoints(touchPoint);
-				int touchedX = (int) touchPoint[0];
-				int touchedY = (int) touchPoint[1];
-
-				if ( touchedX >= 0 && touchedX < mBitmap.getWidth()
-						&& touchedY >= 0 && touchedY < mBitmap.getHeight() ) {
-					int pixel = mBitmap.getPixel(touchedX, touchedY);
-					int alpha = Color.alpha(pixel);
-					int intColor = getRgbIntColor(pixel);
-
-					String hexColor = String.format("#%06X", (0xFFFFFF & intColor));
-					String addAlpha = GraphicsUtil.getHexaDecimalColorAddedAlpha(hexColor, alpha);
-
-					if ( !mIsPassRectIng1 || !mIsPassRectIng2 ) {
-//						initPointerCoordinate();
-
-						arVertex1.clear();
-						arVertex2.clear();
-						arVertex3.clear();
-
-						distance();
-
-						invalidate();// 뷰를 갱신
-						Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
-						return false;
-					}
-
-					if ( !mRectEnd.contains(touchedX, touchedY) ) {
-//						initPointerCoordinate();
-
-						arVertex1.clear();
-						arVertex2.clear();
-						arVertex3.clear();
-
-						distance();
-
-						invalidate();// 뷰를 갱신
-						Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
-						return false;
-					}
-//
-					if ( HEX_BACKGROUND_TRANSPARENT.equals(addAlpha) ) {
-//						initPointerCoordinate();
-
-						arVertex1.clear();
-						arVertex2.clear();
-						arVertex3.clear();
-
-						distance();
-
-						invalidate();// 뷰를 갱신
-						Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
-						return false;
-					}
-
-					double section = 2 * sPi / sSectionNum;
-					float allAngle = 0, allAngle1 = 0, allLength = 0;
-					boolean allAngleReset = true;
-
-					arVertex2.add(arVertex1.get(0));
-					for (int i=1; i<arVertex1.size(); i+=1) {
-						float x2, y2;
-						x2 = arVertex1.get(i).x - arVertex1.get(i-1).x;
-						y2 = arVertex1.get(i-1).y - arVertex1.get(i).y;
-
-						// 각도 구하기
-						float radian = getAngle(x2, y2);
-
-						// 거리 구하기
-						float length = (float) Math.sqrt( Math.pow(x2, 2.f) + Math.pow(y2, 2.f) );
-						// Math.sqrt: 루트 근사값 구하기
-						// Math.pow: 제곱 함수
-
-						// 각도로 구역구하기
-						double tempang = ( radian + (section / 2) ) % (2 * sPi);
-						int sec = (int) (tempang / section);
-
-						arVertex1.get(i).radian = radian;
-						arVertex1.get(i).length = length;
-						arVertex1.get(i).section = sec;
-
-						// 이전 직선과의 각도차
-						if (!allAngleReset) {
-							double AngGap = arVertex1.get(i-1).radian - arVertex1.get(i).radian;
-							if (AngGap > sPi) {
-								AngGap -= 2 * sPi;
-							} else if (AngGap < -sPi) {
-								AngGap += 2 * sPi;
-							}
-							allAngle += AngGap;
-							allAngle1 += AngGap;
-						} else {
-							allAngleReset = false;
-						}
-
-						allLength += length;
-						Log.e("test", i +"번라인  구간  : "+sec+ "  각도 : " + (int)(radian*sRtd) +
-								" 길이합 : " + allLength+ " 각도차합 : " + (int)(allAngle*sRtd) + "    " + (int)(allAngle1*sRtd));
-
-						if (allAngle > section * 3/2 || allAngle < -section * 3/2 ) {
-							Log.e("test", i + "번째" +
-									" 변곡점 각도 : "+(int)(allAngle*sRtd)+
-									" 총 길이는 " + allLength);
-
-							allAngleReset = false;
-							allAngle = 0;
-							arVertex2.add(arVertex1.get(i));
-						}
-					} // end for each
-
-					arVertex2.add( arVertex1.get(arVertex1.size() - 1) );
-
-					Log.e("test","=========> 총각도 : "+ (int)(allAngle*sRtd));
-
-					if (allAngle1 > sRoundMinAngle) {
-						int round = (int) ( allAngle1 / (2 * sPi) );
-						if ( allAngle1 % (2 * sPi) > sRoundMinAngle ) {
-							round++;
-						}
-//						Toast.makeText(this.getContext(), "원(반시계방향) "+ round + "바퀴" , Toast.LENGTH_SHORT).show();
-						Log.e("ACTION_UP", "원(반시계방향) "+ round + "바퀴");
-
-						// TODO BUSINESS LOGIC
-						mIsAuthorized = true;
-						mDrawing = false;
-
-						mGesturePointerListener.onButtonEnabled(true);
-						Toast.makeText(mContext, "성공", Toast.LENGTH_SHORT).show();
-
-						return false;
-					} else if (-allAngle1 > sRoundMinAngle) {
-						int round = (int) ( -allAngle1 / (2 * sPi) );
-						if ( -allAngle1 % (2 * sPi) > sRoundMinAngle ) {
-							round++;
-						}
-//						Toast.makeText(this.getContext(), "원(시계방향) "+ round + "바퀴 " , Toast.LENGTH_SHORT).show();
-						Log.e("ACTION_UP", "원(시계방향) "+ round + "바퀴");
-
-						// TODO BUSINESS LOGIC
-						mIsAuthorized = true;
-						mDrawing = false;
-
-						mGesturePointerListener.onButtonEnabled(true);
-						Toast.makeText(mContext, "성공", Toast.LENGTH_SHORT).show();
-
-						return false;
-					}
-
-					double AllmoveAngle = 0;
-					for (int i=1; i < arVertex2.size(); i+=1) {
-						float x2, y2;
-						x2 = arVertex2.get(i).x - arVertex2.get(i-1).x;
-						y2 = arVertex2.get(i-1).y - arVertex2.get(i).y;
-
-						float length = (float) Math.sqrt( Math.pow(x2, 2.f) + Math.pow(y2, 2.f) );
-						if ( length < (allLength / arVertex2.size() / 2) ) {
-							Log.e("test","2단계   ==> 전체 길이 : "+ allLength / arVertex2.size() + " 이부분길이 : "+length);
-							continue;
-						}
-						// 각도 구하기
-						double radian = getAngle(x2, y2);
-
-						// 첫번째 직선으로 보정
-						radian += AllmoveAngle;
-						// 매칭되는 가장 가까운 직선각 구하기 22.5 도 회전
-						double tempang = (radian + (section / 2)) % (2 * sPi);
-
-						double moveAngle = tempang % section;
-						moveAngle = (moveAngle < (section / 2) ? (section / 2) - moveAngle : (section / 2) - moveAngle);
-
-						if (i == 1) { // 첫번째 직선에 대해 보정.
-							AllmoveAngle = moveAngle;
-						}
-						// 각도로 구역구하기
-						int sec = (int) (tempang / section);
-
-						Log.e("test","2단계   ==> "+ i +"번라인   구간  : "+sec+ "  각도 : " + (int) ( (radian+moveAngle) * sRtd) );
-
-						// TODO BUSINESS LOGIC
-
-						if (arVertex3.size() > 0) {
-							if ( arVertex3.get(arVertex3.size()-1).section == sec ) {
-								arVertex3.get(arVertex3.size()-1).length += length;
-								continue;
-							}
-						}
-						Vertex vertex = new Vertex(arVertex2.get(i-1).x, arVertex2.get(i-1).y);
-						vertex.radian = (radian + moveAngle);
-						vertex.length = length;
-						vertex.section = sec;
-						arVertex3.add(vertex);
-					} // end for each
-
-					Log.e("ACTION_UP", "arVertex1.size(): " + arVertex1.size() + "");
-					Log.e("ACTION_UP", "arVertex2.size(): " + arVertex2.size() + "");
-					Log.e("ACTION_UP", "arVertex3.size(): " + arVertex3.size() + "");
-					Log.e("ACTION_UP", "AllmoveAngle: " + AllmoveAngle + "");
-					Log.e("ACTION_UP", "allLength / arVertex2.size(): " + allLength / arVertex2.size());
-
-					invalidate();
-
-					// 텍스트 출력
-					String str = "결과 : ";
-					for (int i=0; i<arVertex3.size(); i++) {
-						str = str + arVertex3.get(i).section;
-						if ( i < arVertex3.size()-1 ) {
-							str = str + " -> ";
-						}
-					}
-//					Toast.makeText(this.getContext(), str, Toast.LENGTH_SHORT).show();
-					Log.e("test", str);
-					Log.e("test", "=================끝===============");
-
-					boolean isValidTouch = arVertex1.size() > 85
-							&& arVertex2.size() > 20
-							&& arVertex3.size() > 10
-//							&& Math.abs( (int) (allAngle * sRtd) ) > 4 // 총 각도
-							&& allLength / arVertex2.size() > 80; // 전체 길이
-
-					if (isValidTouch) {
-						mIsAuthorized = true;
-						mDrawing = false;
-
-						mGesturePointerListener.onButtonEnabled(true);
-						Toast.makeText(mContext, "성공", Toast.LENGTH_SHORT).show();
-
-						return false;
-					} else {
-//						initPointerCoordinate();
-
-						arVertex1.clear();
-						arVertex2.clear();
-						arVertex3.clear();
-
-						distance();
-
-						invalidate();// 뷰를 갱신
-					}
-
-					Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
-
-				} else {
-//					initPointerCoordinate();
-
-					arVertex1.clear();
-					arVertex2.clear();
-					arVertex3.clear();
-
-					distance();
-
-					invalidate();// 뷰를 갱신
-
-					Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
-					return false;
-				}
-
-				// TODO BUSINESS LOGIC
-				Log.e("ACTION_UP", "인증성공여부: " + mIsAuthorized);
+				handleTouchUp(event);
 				break;
-
 			} // end case
 		} // end switch
 
 		// true 를 반환하여 더 이상의 이벤트 처리가 이루어지지 않도록 완료한다.
 		return true;
-	}
+	} // end method onTouchEvent
 
 	/**
 	 * 화면 가로/세로 전환 시 호출, 뷰 최초 진입(?) 시 호출
-	 * @param w
-	 * @param h
-	 * @param oldw
-	 * @param oldh
+	 * @param newWidth
+	 * @param newHeight
+	 * @param oldWidth
+	 * @param oldHeight
 	 */
 	@Override
-	protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-		super.onSizeChanged(w, h, oldw, oldh);
-
-		Log.e("onSizeChanged", String.format("width: %d, height: %d, oldWidth: %d, oldHeight: %d", w, h, oldw, oldh));
-	}
+	protected void onSizeChanged(int newWidth, int newHeight, int oldWidth, int oldHeight) {
+		super.onSizeChanged(newWidth, newHeight, oldWidth, oldHeight);
+	} // end method onSizeChanged
 
 	/**
-	 *
-	 */
-	private void distance() {
-		distance = 0;
-		mPathMeasure.getPosTan(distance, pos, tan);
-
-		mPathMatrix.reset();
-		float degrees = (float) (Math.atan2(tan[1], tan[0]) * 180.0 / Math.PI);
-		mPathMatrix.postRotate(degrees, bm_offsetX, bm_offsetY);
-		mPathMatrix.postTranslate(pos[0] - bm_offsetX, pos[1] - bm_offsetY);
-	}
-
-	/**
-	 *
-	 */
-	private void initPointerCoordinate() {
-		mPointerX = mWidth - 500;
-		mPointerY = 50;
-	}
-
-	/**
-	 *
-	 * @param pixel
+	 * 처음 눌렸을 때 이벤트 핸들러
+	 * @param event
 	 * @return
 	 */
-	private int getRgbIntColor(int pixel) {
-		int red = Color.red(pixel);
-		int blue = Color.blue(pixel);
-		int green = Color.green(pixel);
-		return Color.rgb(red, blue, green);
+	private boolean handleTouchDown(MotionEvent event) {
+		mMotionEventPointerCount = event.getPointerCount();
+		mGShapeBitmap = ((BitmapDrawable) getDrawable()).getBitmap();
+
+		this.getImageMatrix().invert(mMatrix);
+		float[] touchPoint = new float[] {event.getX(), event.getY()};
+		mMatrix.mapPoints(touchPoint);
+		mMotionEventCurrentTouchedX = (int) touchPoint[0];
+		mMotionEventCurrentTouchedY = (int) touchPoint[1];
+
+		// single touch
+		if ( mMotionEventPointerCount == 1 ) {
+			mIsDrawing = true;
+			if ( mMotionEventCurrentTouchedX >= 0 && mMotionEventCurrentTouchedX < mGShapeBitmap.getWidth()
+					&& mMotionEventCurrentTouchedY >= 0 && mMotionEventCurrentTouchedY < mGShapeBitmap.getHeight() ) {
+
+				mMotionEventCurrentPixel = mGShapeBitmap.getPixel(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY);
+				mMotionEventCurrentAlpha = Color.alpha(mMotionEventCurrentPixel);
+				mMotionEventCurrentRgbIntColor = CustomUtil.getRgbIntColor(mMotionEventCurrentPixel);
+				mMotionEventCurrentHexColor = CustomUtil.getHexColor(mMotionEventCurrentRgbIntColor);
+				mMotionEventCurrentHexColorAddedAlpha = CustomUtil.getHexaDecimalColorAddedAlpha(mMotionEventCurrentHexColor, mMotionEventCurrentAlpha);
+
+				initMotionTouchEvent();// 초기화
+
+				// 시작점으로 지정한 영역(투명색)을 터치하지 않은 경우
+				if ( !mRectStart.contains(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY) ) {
+
+					Log.e("handleTouchDown", "시작점으로 지정한 영역(투명색)을 터치하지 않은 경우");
+
+					invalidate();// 뷰를 갱신
+					return false;
+				}
+
+				// G 모양 텍스트를 터치하지 않은 경우
+				if ( HEX_BACKGROUND_TRANSPARENT.equals(mMotionEventCurrentHexColorAddedAlpha) ) {
+
+					Log.e("handleTouchDown", "G 모양 텍스트를 터치하지 않은 경우");
+
+					invalidate();// 뷰를 갱신
+					return false;
+				}
+
+				arrVertex1.add( new Vertex(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY) );
+			}
+		}
+
+		// You should return true; in case MotionEvent.ACTION_DOWN:, so the MotionEvent.ACTION_UP will be handled.
+		return true;
 	}
-	
+
+	/**
+	 * 누르고 움직였을 때 이벤트 핸들러
+	 * @param event
+	 * @return
+	 */
+	private boolean handleTouchMove(MotionEvent event) {
+		mMotionEventPointerCount = event.getPointerCount();
+		mGShapeBitmap = ((BitmapDrawable) getDrawable()).getBitmap();
+
+		this.getImageMatrix().invert(mMatrix);
+		float[] touchPoint = new float[] {event.getX(), event.getY()};
+		mMatrix.mapPoints(touchPoint);
+		mMotionEventCurrentTouchedX = (int) touchPoint[0];
+		mMotionEventCurrentTouchedY = (int) touchPoint[1];
+
+		// single touch
+		if ( mMotionEventPointerCount == 1 ) {
+			if ( mMotionEventCurrentTouchedX >= 0 && mMotionEventCurrentTouchedX < mGShapeBitmap.getWidth()
+					&& mMotionEventCurrentTouchedY >= 0 && mMotionEventCurrentTouchedY < mGShapeBitmap.getHeight() ) {
+
+				mMotionEventCurrentPixel = mGShapeBitmap.getPixel(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY);
+				mMotionEventCurrentAlpha = Color.alpha(mMotionEventCurrentPixel);
+				mMotionEventCurrentRgbIntColor = CustomUtil.getRgbIntColor(mMotionEventCurrentPixel);
+				mMotionEventCurrentHexColor = CustomUtil.getHexColor(mMotionEventCurrentRgbIntColor);
+				mMotionEventCurrentHexColorAddedAlpha = CustomUtil.getHexaDecimalColorAddedAlpha(mMotionEventCurrentHexColor, mMotionEventCurrentAlpha);
+
+				if ( mRectIng1.contains(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY) ) {
+					mIsPassRectIng1 = true;
+				}
+
+				if ( mRectIng2.contains(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY) ) {
+					mIsPassRectIng2 = true;
+				}
+
+				if ( HEX_BACKGROUND_TRANSPARENT.equals(mMotionEventCurrentHexColorAddedAlpha) ) {
+					initMotionTouchEvent();// 초기화
+					invalidate();// 뷰를 갱신
+					return false;
+				}
+
+				if (mDistanceMoved < mPathLength) {
+					mPathMeasure.getPosTan(mDistanceMoved, mPathPos, mPathTan);
+					mPathMatrix.reset();
+					float degrees = (float) (Math.atan2(mPathTan[1], mPathTan[0]) * 180.0 / Math.PI);
+					mPathMatrix.postRotate(degrees, mPathBitmapOffsetX, mPathBitmapOffsetY);
+					mPathMatrix.postTranslate(mPathPos[0] - mPathBitmapOffsetX, mPathPos[1] - mPathBitmapOffsetY);
+					mDistanceMoved += mDistanceEachStep;
+				} else {
+					mDistanceMoved = 0;
+				}
+
+				arrVertex1.add( new Vertex( event.getX(), event.getY() ) );
+
+				if ( mMotionEventCurrentTouchedX + 50 >= mWidth / 2 ) {
+					Log.e("handleTouchMove", "mMotionEventCurrentTouchedX: " + mMotionEventCurrentTouchedX);
+				}
+				if ( mMotionEventCurrentTouchedY >= mHeight / 2 ) {
+					Log.e("handleTouchMove", "mMotionEventCurrentTouchedY: " + mMotionEventCurrentTouchedY);
+				}
+
+				invalidate();// 뷰를 갱신
+
+			} else {
+				initMotionTouchEvent();// 초기화
+				invalidate();// 뷰를 갱신
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * 누르고 있던 것을 떼었을 때 이벤트 핸들러
+	 * @param event
+	 * @return
+	 */
+	private boolean handleTouchUp(MotionEvent event) {
+		mMotionEventPointerCount = event.getPointerCount();
+		mGShapeBitmap = ((BitmapDrawable) getDrawable()).getBitmap();
+
+		this.getImageMatrix().invert(mMatrix);
+		float[] touchPoint = new float[] {event.getX(), event.getY()};
+		mMatrix.mapPoints(touchPoint);
+		mMotionEventCurrentTouchedX = (int) touchPoint[0];
+		mMotionEventCurrentTouchedY = (int) touchPoint[1];
+
+		// single touch
+		if ( mMotionEventPointerCount == 1 ) {
+			if ( mMotionEventCurrentTouchedX >= 0 && mMotionEventCurrentTouchedX < mGShapeBitmap.getWidth()
+					&& mMotionEventCurrentTouchedY >= 0 && mMotionEventCurrentTouchedY < mGShapeBitmap.getHeight() ) {
+
+				mMotionEventCurrentPixel = mGShapeBitmap.getPixel(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY);
+				mMotionEventCurrentAlpha = Color.alpha(mMotionEventCurrentPixel);
+				mMotionEventCurrentRgbIntColor = CustomUtil.getRgbIntColor(mMotionEventCurrentPixel);
+				mMotionEventCurrentHexColor = CustomUtil.getHexColor(mMotionEventCurrentRgbIntColor);
+				mMotionEventCurrentHexColorAddedAlpha = CustomUtil.getHexaDecimalColorAddedAlpha(mMotionEventCurrentHexColor, mMotionEventCurrentAlpha);
+
+				if ( !mIsPassRectIng1 || !mIsPassRectIng2 ) {
+					initMotionTouchEvent();// 초기화
+					invalidate();// 뷰를 갱신
+					Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
+					return false;
+				}
+
+				if ( !mRectEnd.contains(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY) ) {
+					initMotionTouchEvent();// 초기화
+					invalidate();// 뷰를 갱신
+					Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
+					return false;
+				}
+//
+				if ( HEX_BACKGROUND_TRANSPARENT.equals(mMotionEventCurrentHexColorAddedAlpha) ) {
+					initMotionTouchEvent();// 초기화
+					invalidate();// 뷰를 갱신
+					Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
+					return false;
+				}
+
+				double section = 2 * sPi / sSectionNum;
+				float allAngle = 0, allAngle1 = 0, allLength = 0;
+				boolean allAngleReset = true;
+
+				arrVertex2.add(arrVertex1.get(0));
+				for (int i=1; i<arrVertex1.size(); i+=1) {
+					float x2, y2;
+					x2 = arrVertex1.get(i).x - arrVertex1.get(i-1).x;
+					y2 = arrVertex1.get(i-1).y - arrVertex1.get(i).y;
+
+					// 각도 구하기
+					float radian = getAngle(x2, y2);
+
+					// 거리 구하기
+					float length = (float) Math.sqrt( Math.pow(x2, 2.f) + Math.pow(y2, 2.f) );
+					// Math.sqrt: 루트 근사값 구하기
+					// Math.pow: 제곱 함수
+
+					// 각도로 구역구하기
+					double tempang = ( radian + (section / 2) ) % (2 * sPi);
+					int sec = (int) (tempang / section);
+
+					arrVertex1.get(i).radian = radian;
+					arrVertex1.get(i).length = length;
+					arrVertex1.get(i).section = sec;
+
+					// 이전 직선과의 각도차
+					if (!allAngleReset) {
+						double AngGap = arrVertex1.get(i-1).radian - arrVertex1.get(i).radian;
+						if (AngGap > sPi) {
+							AngGap -= 2 * sPi;
+						} else if (AngGap < -sPi) {
+							AngGap += 2 * sPi;
+						}
+						allAngle += AngGap;
+						allAngle1 += AngGap;
+					} else {
+						allAngleReset = false;
+					}
+
+					allLength += length;
+					Log.e("test", i +"번라인  구간  : "+sec+ "  각도 : " + (int)(radian*sRtd) +
+							" 길이합 : " + allLength+ " 각도차합 : " + (int)(allAngle*sRtd) + "    " + (int)(allAngle1*sRtd));
+
+					if (allAngle > section * 3/2 || allAngle < -section * 3/2 ) {
+						Log.e("test", i + "번째" +
+								" 변곡점 각도 : "+(int)(allAngle*sRtd)+
+								" 총 길이는 " + allLength);
+
+						allAngleReset = false;
+						allAngle = 0;
+						arrVertex2.add(arrVertex1.get(i));
+					}
+				} // end for each
+
+				arrVertex2.add( arrVertex1.get(arrVertex1.size() - 1) );
+
+				Log.e("test","=========> 총각도 : "+ (int)(allAngle*sRtd));
+
+				if (allAngle1 > sRoundMinAngle) {
+					int round = (int) ( allAngle1 / (2 * sPi) );
+					if ( allAngle1 % (2 * sPi) > sRoundMinAngle ) {
+						round++;
+					}
+					Log.e("ACTION_UP", "원(반시계방향) "+ round + "바퀴");
+
+					// TODO BUSINESS LOGIC
+					mIsAuthorized = true;
+					mIsDrawing = false;
+
+					mGesturePointerListener.onButtonEnabled(true);
+					Toast.makeText(mContext, "성공", Toast.LENGTH_SHORT).show();
+
+					return false;
+				} else if (-allAngle1 > sRoundMinAngle) {
+					int round = (int) ( -allAngle1 / (2 * sPi) );
+					if ( -allAngle1 % (2 * sPi) > sRoundMinAngle ) {
+						round++;
+					}
+					Log.e("ACTION_UP", "원(시계방향) "+ round + "바퀴");
+
+					// TODO BUSINESS LOGIC
+					mIsAuthorized = true;
+					mIsDrawing = false;
+
+					mGesturePointerListener.onButtonEnabled(true);
+					Toast.makeText(mContext, "성공", Toast.LENGTH_SHORT).show();
+
+					return false;
+				}
+
+				double AllmoveAngle = 0;
+				for (int i=1; i < arrVertex2.size(); i+=1) {
+					float x2, y2;
+					x2 = arrVertex2.get(i).x - arrVertex2.get(i-1).x;
+					y2 = arrVertex2.get(i-1).y - arrVertex2.get(i).y;
+
+					float length = (float) Math.sqrt( Math.pow(x2, 2.f) + Math.pow(y2, 2.f) );
+					if ( length < (allLength / arrVertex2.size() / 2) ) {
+						Log.e("test","2단계   ==> 전체 길이 : "+ allLength / arrVertex2.size() + " 이부분길이 : "+length);
+						continue;
+					}
+					// 각도 구하기
+					double radian = getAngle(x2, y2);
+
+					// 첫번째 직선으로 보정
+					radian += AllmoveAngle;
+					// 매칭되는 가장 가까운 직선각 구하기 22.5 도 회전
+					double tempang = (radian + (section / 2)) % (2 * sPi);
+
+					double moveAngle = tempang % section;
+					moveAngle = (moveAngle < (section / 2) ? (section / 2) - moveAngle : (section / 2) - moveAngle);
+
+					if (i == 1) { // 첫번째 직선에 대해 보정.
+						AllmoveAngle = moveAngle;
+					}
+					// 각도로 구역구하기
+					int sec = (int) (tempang / section);
+
+					Log.e("test","2단계   ==> "+ i +"번라인   구간  : "+sec+ "  각도 : " + (int) ( (radian+moveAngle) * sRtd) );
+
+					if (arrVertex3.size() > 0) {
+						if ( arrVertex3.get(arrVertex3.size()-1).section == sec ) {
+							arrVertex3.get(arrVertex3.size()-1).length += length;
+							continue;
+						}
+					}
+
+					Vertex vertex = new Vertex(arrVertex2.get(i-1).x, arrVertex2.get(i-1).y);
+					vertex.radian = (radian + moveAngle);
+					vertex.length = length;
+					vertex.section = sec;
+					arrVertex3.add(vertex);
+				} // end for each
+
+				invalidate();
+
+				// 텍스트 출력
+				String str = "결과 : ";
+				for (int i=0; i<arrVertex3.size(); i++) {
+					str = str + arrVertex3.get(i).section;
+					if ( i < arrVertex3.size()-1 ) {
+						str = str + " -> ";
+					}
+				}
+
+				boolean isValidTouch = arrVertex1.size() > 85
+						&& arrVertex2.size() > 20
+						&& arrVertex3.size() > 10
+//							&& Math.abs( (int) (allAngle * sRtd) ) > 4 // 총 각도
+						&& allLength / arrVertex2.size() > 80; // 전체 길이
+
+				if (isValidTouch) {
+					mIsAuthorized = true;
+					mIsDrawing = false;
+
+					mGesturePointerListener.onButtonEnabled(true);
+					Toast.makeText(mContext, "성공", Toast.LENGTH_SHORT).show();
+					return true;
+				} else {
+					initMotionTouchEvent();// 초기화
+					invalidate();// 뷰를 갱신
+					Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
+					return false;
+				}
+
+			} else {
+				initMotionTouchEvent();// 초기화
+				invalidate();// 뷰를 갱신
+				Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
+				return false;
+			}
+		}
+
+		// TODO BUSINESS LOGIC
+		Log.e("ACTION_UP", "인증성공여부: " + mIsAuthorized);
+		return true;
+	}
+
+	/**
+	 * 모션 터치 이벤트 초기화
+	 */
+	private void initMotionTouchEvent() {
+		arrVertex1.clear();// 점의 연속: 사용자가 터치한 직선
+		arrVertex2.clear();// 점의 연속: 1차 보간된 선분
+		arrVertex3.clear();// 점의 연속: 최종 인식된 고정직선
+
+		mDistanceMoved = 0;
+		mPathMeasure.getPosTan(mDistanceMoved, mPathPos, mPathTan);
+
+		mPathMatrix.reset();
+		mPathDegrees = (float) (Math.atan2(mPathTan[1], mPathTan[0]) * 180.0 / Math.PI);
+		mPathMatrix.postRotate(mPathDegrees, mPathBitmapOffsetX, mPathBitmapOffsetY);
+		mPathMatrix.postTranslate(mPathPos[0] - mPathBitmapOffsetX, mPathPos[1] - mPathBitmapOffsetY);
+	} // end method distance
+
 	/**
      * x = 0 직선에 대한 점의 각도를 계산한다
 	 * @param x2
@@ -895,13 +865,13 @@ public class CustomGestureView extends AppCompatImageView {
 			radian += 2 * sPi;
 		}
 		return radian;
-	}
+	} // end method getAngle
 
 	/**
 	 * 꼭지점
 	 */
 	public class Vertex {
-		Vertex(float ax, float ay){
+		Vertex(float ax, float ay) {
 	    	x = ax;
 	    	y = ay;
 	    }
@@ -911,6 +881,21 @@ public class CustomGestureView extends AppCompatImageView {
 		double radian;
 		float length;
 		int section;
+	}
+
+
+	private class Variables {
+
+		public class MotionEvent {
+			public int pointerCount;
+			public int currentTouchedX, mMotionEventCurrentTouchedY;
+			public int currentPixel;
+			public int currentAlpha;
+			public int currentRgbIntColor;
+			public String currentHexColor;
+			public String currentHexColorAddedAlpha;
+		}
+
 	}
 
 }
