@@ -5,6 +5,7 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.util.DisplayMetrics;
@@ -16,7 +17,7 @@ import android.widget.ImageView;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.drawable.DrawableCompat;
 
-public class GraphicsUtil {
+public class CustomUtil {
 
     /**
      * Get Bitmap From Vector Drawable
@@ -261,10 +262,28 @@ public class GraphicsUtil {
         if (density < 0) {
             density = res.getDisplayMetrics().density;
         }
-
-        float px = dp * density;
-
-        return px;
+        return dp * density;
     }
+
+    /**
+     *
+     * @param rgbIntColor
+     * @return
+     */
+    public static String getHexColor(int rgbIntColor) {
+        return String.format("#%06X", (0xFFFFFF & rgbIntColor));
+    }
+
+    /**
+     *
+     * @param pixel
+     * @return
+     */
+    public static int getRgbIntColor(int pixel) {
+        int red = Color.red(pixel);
+        int blue = Color.blue(pixel);
+        int green = Color.green(pixel);
+        return Color.rgb(red, blue, green);
+    } // end method getRgbIntColor
 
 }
