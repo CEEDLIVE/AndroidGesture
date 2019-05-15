@@ -97,14 +97,17 @@ public class CustomGestureView extends AppCompatImageView {
 
 	private int mMotionEventPointerCount;
 	private int mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY;
-	private int mMotionEventCurrentPixel;
-	private int mMotionEventCurrentAlpha;
-	private int mMotionEventCurrentRgbIntColor;
-	private String mMotionEventCurrentHexColor;
-	private String mMotionEventCurrentHexColorAddedAlpha;
+	private int mMotionEventPreviousTouchedX, mMotionEventPreviousTouchedY;
+	private int mGShapeCurrentPixel, mPathPointerCurrentPixel;
+	private int mGShapeCurrentAlpha, mPathPointerCurrentAlpha;
+	private int mGShapeCurrentRgbIntColor, mPathPointerCurrentRgbIntColor;
+	private String mGShapeCurrentHexColor, mPathPointerCurrentHexColor;
+	private String mGShapeCurrentHexColorAddedAlpha, mPathPointerCurrentHexColorAddedAlpha;
 
 	private List<Rect> mValidationRectLIst;
 
+
+	private boolean mIsTouchMove;
 
 	private GesturePointerListener mGesturePointerListener;
 
@@ -220,7 +223,7 @@ public class CustomGestureView extends AppCompatImageView {
 
 		// set path
 		{
-			mDistanceEachStep = 10; // 패스 위를 움직이는 이미지의 이동속도
+			mDistanceEachStep = 5; // 패스 위를 움직이는 이미지의 이동속도
 			mDistanceMoved = 0;
 			mPathPos = new float[2];
 			mPathTan = new float[2];
@@ -241,6 +244,9 @@ public class CustomGestureView extends AppCompatImageView {
 			mIsPassRectIng1 = false; // 첫 번째 영역 통과
 			mIsPassRectIng2 = false; // 두 번째 영역 통과
 			mIsDrawing = false; // onDraw 메서드 전체 실행 여부
+
+			mMotionEventPreviousTouchedX = 0;
+			mMotionEventPreviousTouchedY = 0;
 		}
 
 		initMotionTouchEvent();
@@ -298,7 +304,8 @@ public class CustomGestureView extends AppCompatImageView {
 	 * @param path
 	 */
 	private void drawGShapePath(Canvas canvas, Paint paint, Path path) {
-		paint.setColor(Color.TRANSPARENT);
+//		paint.setColor(Color.TRANSPARENT);
+		paint.setColor(Color.RED);
 		paint.setStrokeWidth(5f);
 		paint.setStyle(Paint.Style.STROKE);
 		canvas.drawPath(path, paint);
@@ -338,8 +345,7 @@ public class CustomGestureView extends AppCompatImageView {
 				paint.setColor(Color.WHITE);
 			}
 
-			// FIXME
-			paint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+			paint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리 // FIXME
 
 			// 부드럽게 하기 위해서 원을 추가
 			canvas.drawCircle(vertexArrayList.get(i-1).x, vertexArrayList.get(i-1).y, 3, paint);
@@ -370,8 +376,7 @@ public class CustomGestureView extends AppCompatImageView {
 			y2 += movePos;
 			paint.setColor(Color.GREEN);
 
-			// FIXME
-			paint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+			paint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리 // FIXME
 
 			paint.setAlpha(120);
 			canvas.drawLine(x1, y1, x2, y2, paint);
@@ -404,20 +409,17 @@ public class CustomGestureView extends AppCompatImageView {
 
 			paint.setColor(Color.GRAY);
 
-			// FIXME
-			paint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+			paint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리 // FIXME
 
 			canvas.drawLine(x1, y1, x2, y2, paint);
 			paint.setColor(Color.RED);
 
-			// FIXME
-			paint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+			paint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리 // FIXME
 
 			canvas.drawCircle(x2, y2, 3, paint);
 			paint.setColor(Color.BLACK);
 
-			// FIXME
-			paint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+			paint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리 // FIXME
 
 			canvas.drawCircle(x1, y1, 3, paint);
 		}
@@ -439,7 +441,9 @@ public class CustomGestureView extends AppCompatImageView {
 			} // end case
 			// 누르고 움직였을 때
 			case MotionEvent.ACTION_MOVE: {
-				handleTouchMove(event);
+				if (mIsDrawing) {
+					handleTouchMove(event);
+				}
 				break;
 			} // end case
 			// 누르고 있던 것을 떼었을 때
@@ -482,42 +486,43 @@ public class CustomGestureView extends AppCompatImageView {
 
 		// single touch
 		if ( mMotionEventPointerCount == 1 ) {
-			mIsDrawing = true;
 			if ( mMotionEventCurrentTouchedX >= 0 && mMotionEventCurrentTouchedX < mGShapeBitmap.getWidth()
 					&& mMotionEventCurrentTouchedY >= 0 && mMotionEventCurrentTouchedY < mGShapeBitmap.getHeight() ) {
 
-				mMotionEventCurrentPixel = mGShapeBitmap.getPixel(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY);
-				mMotionEventCurrentAlpha = Color.alpha(mMotionEventCurrentPixel);
-				mMotionEventCurrentRgbIntColor = CustomUtil.getRgbIntColor(mMotionEventCurrentPixel);
-				mMotionEventCurrentHexColor = CustomUtil.getHexColor(mMotionEventCurrentRgbIntColor);
-				mMotionEventCurrentHexColorAddedAlpha = CustomUtil.getHexaDecimalColorAddedAlpha(mMotionEventCurrentHexColor, mMotionEventCurrentAlpha);
+				mGShapeCurrentPixel = mGShapeBitmap.getPixel(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY);
+				mGShapeCurrentAlpha = Color.alpha(mGShapeCurrentPixel);
+				mGShapeCurrentRgbIntColor = CustomUtil.getRgbIntColor(mGShapeCurrentPixel);
+				mGShapeCurrentHexColor = CustomUtil.getHexColor(mGShapeCurrentRgbIntColor);
+				mGShapeCurrentHexColorAddedAlpha = CustomUtil.getHexaDecimalColorAddedAlpha(mGShapeCurrentHexColor, mGShapeCurrentAlpha);
 
 				initMotionTouchEvent();// 초기화
 
 				// 시작점으로 지정한 영역(투명색)을 터치하지 않은 경우
 				if ( !mRectStart.contains(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY) ) {
-
 					Log.e("handleTouchDown", "시작점으로 지정한 영역(투명색)을 터치하지 않은 경우");
-
 					invalidate();// 뷰를 갱신
 					return false;
 				}
 
 				// G 모양 텍스트를 터치하지 않은 경우
-				if ( HEX_BACKGROUND_TRANSPARENT.equals(mMotionEventCurrentHexColorAddedAlpha) ) {
-
+				if ( HEX_BACKGROUND_TRANSPARENT.equals(mGShapeCurrentHexColorAddedAlpha) ) {
 					Log.e("handleTouchDown", "G 모양 텍스트를 터치하지 않은 경우");
-
 					invalidate();// 뷰를 갱신
 					return false;
 				}
 
+				mIsDrawing = true;
+				mIsTouchMove = true;
 				arrVertex1.add( new Vertex(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY) );
+
+				// You should return true; in case MotionEvent.ACTION_DOWN:, so the MotionEvent.ACTION_UP will be handled.
+				return true;
 			}
+
+			return false;
 		}
 
-		// You should return true; in case MotionEvent.ACTION_DOWN:, so the MotionEvent.ACTION_UP will be handled.
-		return true;
+		return false;
 	}
 
 	/**
@@ -540,11 +545,11 @@ public class CustomGestureView extends AppCompatImageView {
 			if ( mMotionEventCurrentTouchedX >= 0 && mMotionEventCurrentTouchedX < mGShapeBitmap.getWidth()
 					&& mMotionEventCurrentTouchedY >= 0 && mMotionEventCurrentTouchedY < mGShapeBitmap.getHeight() ) {
 
-				mMotionEventCurrentPixel = mGShapeBitmap.getPixel(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY);
-				mMotionEventCurrentAlpha = Color.alpha(mMotionEventCurrentPixel);
-				mMotionEventCurrentRgbIntColor = CustomUtil.getRgbIntColor(mMotionEventCurrentPixel);
-				mMotionEventCurrentHexColor = CustomUtil.getHexColor(mMotionEventCurrentRgbIntColor);
-				mMotionEventCurrentHexColorAddedAlpha = CustomUtil.getHexaDecimalColorAddedAlpha(mMotionEventCurrentHexColor, mMotionEventCurrentAlpha);
+				mGShapeCurrentPixel = mGShapeBitmap.getPixel(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY);
+				mGShapeCurrentAlpha = Color.alpha(mGShapeCurrentPixel);
+				mGShapeCurrentRgbIntColor = CustomUtil.getRgbIntColor(mGShapeCurrentPixel);
+				mGShapeCurrentHexColor = CustomUtil.getHexColor(mGShapeCurrentRgbIntColor);
+				mGShapeCurrentHexColorAddedAlpha = CustomUtil.getHexaDecimalColorAddedAlpha(mGShapeCurrentHexColor, mGShapeCurrentAlpha);
 
 				if ( mRectIng1.contains(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY) ) {
 					mIsPassRectIng1 = true;
@@ -554,23 +559,48 @@ public class CustomGestureView extends AppCompatImageView {
 					mIsPassRectIng2 = true;
 				}
 
-				if ( HEX_BACKGROUND_TRANSPARENT.equals(mMotionEventCurrentHexColorAddedAlpha) ) {
+				if ( HEX_BACKGROUND_TRANSPARENT.equals(mGShapeCurrentHexColorAddedAlpha) ) {
 					initMotionTouchEvent();// 초기화
 					invalidate();// 뷰를 갱신
 					return false;
 				}
 
+				// ========================================
+				// logic1
+
+				mMotionEventPreviousTouchedX = mMotionEventPreviousTouchedX == 0 ? mMotionEventCurrentTouchedX : mMotionEventPreviousTouchedX;
+				mMotionEventPreviousTouchedY = mMotionEventCurrentTouchedY == 0 ? mMotionEventCurrentTouchedY : mMotionEventPreviousTouchedY;
+
+
 				if (mDistanceMoved < mPathLength) {
 					mPathMeasure.getPosTan(mDistanceMoved, mPathPos, mPathTan);
 					mPathMatrix.reset();
-					float degrees = (float) (Math.atan2(mPathTan[1], mPathTan[0]) * 180.0 / Math.PI);
-					mPathMatrix.postRotate(degrees, mPathBitmapOffsetX, mPathBitmapOffsetY);
+					mPathDegrees = (float) (Math.atan2(mPathTan[1], mPathTan[0]) * 180.0 / Math.PI);
+					mPathMatrix.postRotate(mPathDegrees, mPathBitmapOffsetX, mPathBitmapOffsetY);
 					mPathMatrix.postTranslate(mPathPos[0] - mPathBitmapOffsetX, mPathPos[1] - mPathBitmapOffsetY);
 					mDistanceMoved += mDistanceEachStep;
 				} else {
 					mDistanceMoved = 0;
 				}
+				// ========================================
 
+				if (mMotionEventPreviousTouchedX == mMotionEventCurrentTouchedX) {
+					Log.e("handleTouchMoveZZZ", "중복");
+				}
+				if (mMotionEventPreviousTouchedY == mMotionEventCurrentTouchedY) {
+					Log.e("handleTouchMoveZZZ", "중복");
+				}
+
+				Log.e("handleTouchMoveZZZ", "mPathBitmapOffsetX: " + mPathBitmapOffsetX);
+				Log.e("handleTouchMoveZZZ", "mPathBitmapOffsetY: " + mPathBitmapOffsetY);
+				Log.e("handleTouchMoveZZZ", "mMotionEventCurrentTouchedX: " + mMotionEventCurrentTouchedX);
+				Log.e("handleTouchMoveZZZ", "mMotionEventCurrentTouchedY: " + mMotionEventCurrentTouchedY);
+				Log.e("handleTouchMoveZZZ", "mPathMatrix.toString(): " + mPathMatrix.toString());
+				Log.e("handleTouchMoveZZZ", "(mPathPos[0] - mPathBitmapOffsetX): " + (mPathPos[0] - mPathBitmapOffsetX) );
+				Log.e("handleTouchMoveZZZ", "(mPathPos[1] - mPathBitmapOffsetY): " + (mPathPos[1] - mPathBitmapOffsetY) );
+
+				// ========================================
+				// logic2
 				arrVertex1.add( new Vertex( event.getX(), event.getY() ) );
 
 				if ( mMotionEventCurrentTouchedX + 50 >= mWidth / 2 ) {
@@ -579,6 +609,7 @@ public class CustomGestureView extends AppCompatImageView {
 				if ( mMotionEventCurrentTouchedY >= mHeight / 2 ) {
 					Log.e("handleTouchMove", "mMotionEventCurrentTouchedY: " + mMotionEventCurrentTouchedY);
 				}
+				// ========================================
 
 				invalidate();// 뷰를 갱신
 
@@ -612,11 +643,11 @@ public class CustomGestureView extends AppCompatImageView {
 			if ( mMotionEventCurrentTouchedX >= 0 && mMotionEventCurrentTouchedX < mGShapeBitmap.getWidth()
 					&& mMotionEventCurrentTouchedY >= 0 && mMotionEventCurrentTouchedY < mGShapeBitmap.getHeight() ) {
 
-				mMotionEventCurrentPixel = mGShapeBitmap.getPixel(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY);
-				mMotionEventCurrentAlpha = Color.alpha(mMotionEventCurrentPixel);
-				mMotionEventCurrentRgbIntColor = CustomUtil.getRgbIntColor(mMotionEventCurrentPixel);
-				mMotionEventCurrentHexColor = CustomUtil.getHexColor(mMotionEventCurrentRgbIntColor);
-				mMotionEventCurrentHexColorAddedAlpha = CustomUtil.getHexaDecimalColorAddedAlpha(mMotionEventCurrentHexColor, mMotionEventCurrentAlpha);
+				mGShapeCurrentPixel = mGShapeBitmap.getPixel(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY);
+				mGShapeCurrentAlpha = Color.alpha(mGShapeCurrentPixel);
+				mGShapeCurrentRgbIntColor = CustomUtil.getRgbIntColor(mGShapeCurrentPixel);
+				mGShapeCurrentHexColor = CustomUtil.getHexColor(mGShapeCurrentRgbIntColor);
+				mGShapeCurrentHexColorAddedAlpha = CustomUtil.getHexaDecimalColorAddedAlpha(mGShapeCurrentHexColor, mGShapeCurrentAlpha);
 
 				if ( !mIsPassRectIng1 || !mIsPassRectIng2 ) {
 					initMotionTouchEvent();// 초기화
@@ -632,7 +663,7 @@ public class CustomGestureView extends AppCompatImageView {
 					return false;
 				}
 //
-				if ( HEX_BACKGROUND_TRANSPARENT.equals(mMotionEventCurrentHexColorAddedAlpha) ) {
+				if ( HEX_BACKGROUND_TRANSPARENT.equals(mGShapeCurrentHexColorAddedAlpha) ) {
 					initMotionTouchEvent();// 초기화
 					invalidate();// 뷰를 갱신
 					Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
@@ -833,6 +864,8 @@ public class CustomGestureView extends AppCompatImageView {
 		mPathDegrees = (float) (Math.atan2(mPathTan[1], mPathTan[0]) * 180.0 / Math.PI);
 		mPathMatrix.postRotate(mPathDegrees, mPathBitmapOffsetX, mPathBitmapOffsetY);
 		mPathMatrix.postTranslate(mPathPos[0] - mPathBitmapOffsetX, mPathPos[1] - mPathBitmapOffsetY);
+
+		mIsDrawing = false;
 	} // end method distance
 
 	/**
