@@ -46,25 +46,4 @@
 
     </FrameLayout>
 
-
-
-    <!--<TextView-->
-        <!--android:layout_width="fill_parent"-->
-        <!--android:layout_height="wrap_content"-->
-        <!--android:text="hello"-->
-        <!--/>-->
-
-    <!--<LinearLayout-->
-        <!--android:orientation="vertical"-->
-        <!--android:id="@+id/main_ll_canvas"-->
-        <!--android:layout_width="match_parent"-->
-        <!--android:layout_height="match_parent"-->
-        <!--&gt;-->
-        <!--<ImageView-->
-            <!--android:layout_width="match_parent"-->
-            <!--android:layout_height="match_parent"-->
-            <!--android:src="@drawable/ic_google"/>-->
-
-    <!--</LinearLayout>-->
-
 </android.support.design.widget.CoordinatorLayout>

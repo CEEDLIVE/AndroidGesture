@@ -7,15 +7,14 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.PathMeasure;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
-import android.util.DisplayMetrics;
 import android.util.Log;
-import android.view.Display;
 import android.view.MotionEvent;
-import android.view.WindowManager;
 import android.widget.Toast;
 
 import com.ceedlive.ggesture.util.GraphicsUtil;
@@ -25,16 +24,34 @@ import java.util.ArrayList;
 import androidx.appcompat.widget.AppCompatImageView;
 
 /**
+ * Quick Start
+ * - 커스텀뷰 생성
+ * - 상하좌우 여백이 없는 G 모양의 이미지 리소스 추가
+ * - 화면의 정중앙에 위치하도록 레이아웃 구현
+ * - G 모양 내부를 한붓 그리기로 통과하는 패스 추가
+ * - 패스 위를 움직이는 이미지 리소스 추가
+ * - 커스텀뷰 터치 이벤트 핸들러 추가
+ * - 끝
+ *
+ *
+ * 로직 1)
  * 연속된 직선들을 n 방향으로 구간을 나누고
  * 360도 중에서 해당 구간으로 뻗어 나가는 직선을 인식하여 번호를 부여함
  * 부여된 번호가 미리 정의된 연속된 번호들과 일치 하는지 확인
- * 확인된 값을 근거로 사용자의 입력을 처리하는 방식
+ * 확인된 값을 근거로 사용자의 입력을 처리하는 로직 구현
+ *
+ *
+ * 로직 2)
+ * 문자 모양의 G 내부를 한붓 그리기로 통과하는 패스 생성
+ * 커스텀뷰 터치 이벤트 발생 시 조건에 맞게 패스 위를 통과하며 움직이는 비트맵 이미지 구현
+ *
  */
 public class CustomGestureView extends AppCompatImageView {
 
 	private Paint mPaint;
 
-	static final double sPi = 3.14159265358979;
+//	static final double sPi = 3.14159265358979;
+	static final double sPi = Math.PI;
 	static final float sRtd = 57.29577951f;
 	static final float sSectionNum = 32; // 방향성 개수 (연속된 직선들을 n 방향으로 구간을 나눔)
 	static final double sRoundMinAngle = 2 * sPi * 11/12;
@@ -45,8 +62,7 @@ public class CustomGestureView extends AppCompatImageView {
 
 	static final String HEX_BACKGROUND_TRANSPARENT = "#00000000";
 
-	private Drawable mDrawable;
-	private Bitmap mBitmap, mBitmapPointer;
+	private Bitmap mBitmap, mPathBitmap;
 
 	private Matrix mMatrix;
 
@@ -55,14 +71,40 @@ public class CustomGestureView extends AppCompatImageView {
 	private int mWidth, mHeight;
 	private int mPointerX, mPointerY;
 
-	private int mDrawableWidth, mDrawableHeight;
-	private int mViewWidth, mViewHeight;
-
-	private Rect mRectStart, mRectIng, mRectEnd;
+	private Rect mRectStart, mRectIng1, mRectIng2, mRectEnd;
 
 	private boolean mIsAuthorized = false;
-	private boolean mIsPassRectIng = false;
+	private boolean mIsPassRectIng1 = false;
+	private boolean mIsPassRectIng2 = false;
 	private boolean mDrawing = false;
+
+	private float mDpi;
+	private int mMaxResolution = 1280;
+
+
+	private Path mAnimPath;
+	private PathMeasure mPathMeasure;
+	private float mPathLength;
+	private Paint mAnimPaint;
+
+	// 시작점
+	private float[] mPointStart;
+	private float[] mPointEnd;
+
+
+	// 끝점
+
+
+	private Bitmap bm;
+	private int bm_offsetX, bm_offsetY;
+
+	private float mDistanceEachStep;   //distance each step
+	private float distance;  //distance moved
+
+	private float[] pos;
+	private float[] tan;
+
+	private Matrix mPathMatrix;
 
 	private GesturePointerListener mGesturePointerListener;
 
@@ -88,7 +130,8 @@ public class CustomGestureView extends AppCompatImageView {
 		initialize();
 	}
 
-	// you will need the constructor public MyView(Context context, AttributeSet attrs), otherwise you will get an Exception when Android tries to inflate your View.
+	// you will need the constructor public CustomGestureView(Context context, AttributeSet attrs),
+	// otherwise you will get an Exception when Android tries to inflate your View.
 	/**
 	 * Java Code 에서 뷰를 생성 할 때 호출되는 생성자
 	 * @param context
@@ -103,7 +146,7 @@ public class CustomGestureView extends AppCompatImageView {
 	}
 
 	// if you add your View from xml and also spcify the android:style attribute like : <com.mypack.MyView style="@styles/MyCustomStyle" />
-	// you will also need the first constructor public MyView(Context context, AttributeSet attrs,int defStyle)
+	// you will also need the first constructor public CustomGestureView(Context context, AttributeSet attrs,int defStyle)
 	/**
 	 * Java Code 에서 뷰를 생성 할 때 호출되는 생성자
 	 * @param context
@@ -122,12 +165,15 @@ public class CustomGestureView extends AppCompatImageView {
 
 	public void initialize() {
 		mPaint = new Paint();// Avoid object allocations during draw/layout operations
+		mAnimPaint = new Paint();
 
-		mBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.logo_genesis_g);
-//		mBitmapPointer = BitmapFactory.decodeResource(getResources(), R.drawable.ic_hyundai_64);
+		mDpi = GraphicsUtil.getDotPerInch(mContext);
 
-		mBitmapPointer = GraphicsUtil.getBitmapFromVectorDrawable(mContext, R.drawable.ic_hyundai);
-		mBitmapPointer = GraphicsUtil.getResizedBitmapByScale(mBitmapPointer, 128, 128);
+		mBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.google_icon_nopad_circle);
+		mBitmap = GraphicsUtil.getResizedBitmapByResolution(mBitmap, mMaxResolution);
+
+		mPathBitmap = GraphicsUtil.getBitmapFromVectorDrawable(mContext, R.drawable.ic_happy);
+		mPathBitmap = GraphicsUtil.getResizedBitmapByScale(mPathBitmap, 256, 256);
 
 		mMatrix = new Matrix();
 
@@ -139,13 +185,64 @@ public class CustomGestureView extends AppCompatImageView {
 		mHeight = mBitmap.getHeight();
 
 		setImageBitmap(mBitmap);
-		mDrawable = getDrawable();
 
-		mRectStart = new Rect(mWidth - 300, 0, mWidth, 200); // 사각형 영역을 만든다
-		mRectIng = new Rect(0, mHeight / 2, 300, (mHeight / 2) + 100); // 사각형 영역을 만든다
-		mRectEnd = new Rect(mWidth - 300, mHeight / 2, mWidth, (mHeight / 2) + 100); // 사각형 영역을 만든다
+		mPointStart = new float[2];
+		mPointEnd = new float[2];
 
-		initPointerCoordinate();
+		mPointStart[0] = (float) (mWidth * 0.75);
+		mPointStart[1] = (float) (mHeight * 0.25);
+
+		mPointEnd[0] = mWidth / 2;
+		mPointEnd[1] = mHeight / 2;
+
+		Log.e("init_variable", "mPointStart[0]: " + mPointStart[0]);
+		Log.e("init_variable", "mPointStart[1]: " + mPointStart[1]);
+		Log.e("init_variable", "mPointEnd[0]: " + mPointEnd[0]);
+		Log.e("init_variable", "mPointEnd[1]: " + mPointEnd[1]);
+
+		// ========================================
+
+		mRectStart = new Rect(mWidth - 550, 0, mWidth - 200, 350); // 사각형 영역을 만든다
+		mRectIng1 = new Rect(0, (mHeight / 2) - 200, 400, (mHeight / 2) + 200); // 사각형 영역을 만든다
+		mRectIng2 = new Rect(mWidth - 400, (mHeight / 2) - 200, mWidth, (mHeight / 2) + 200); // 사각형 영역을 만든다
+		mRectEnd = new Rect(mWidth - 800, (mHeight / 2) - 200, mWidth - 400, (mHeight / 2) + 200); // 사각형 영역을 만든다
+
+		mAnimPath = new Path();
+		mPathMeasure = new PathMeasure();
+
+//		initPointerCoordinate();
+
+
+
+		bm = BitmapFactory.decodeResource(getResources(), R.drawable.ic_hyundai_64);
+		bm_offsetX = mPathBitmap.getWidth() / 2;
+		bm_offsetY = mPathBitmap.getHeight() / 2;
+
+		initPath();
+		distance();
+	}
+
+	private void initPath() {
+		mDistanceEachStep = 10; // ?
+		distance = 0;
+		pos = new float[2];
+		tan = new float[2];
+
+		mPathMatrix = new Matrix();
+
+		RectF oval = new RectF();
+		int weight = 150;// 가변
+		oval.set(0 + weight, 0 + weight, mWidth - weight, mHeight - weight);
+
+		mAnimPath.arcTo(oval, -45f, -315f);
+		mAnimPath.lineTo(mWidth / 2, mHeight / 2);
+
+		mAnimPath.close();
+
+		mPathMeasure = new PathMeasure(mAnimPath, false);
+		mPathLength = mPathMeasure.getLength();
+
+		Log.e("initPath", "mPathLength: " + mPathLength);
 	}
 
 	// onDraw
@@ -158,14 +255,26 @@ public class CustomGestureView extends AppCompatImageView {
 	public void onDraw(Canvas canvas) {
 		super.onDraw(canvas);
 
+		mAnimPaint.setColor(Color.TRANSPARENT);
+		mAnimPaint.setStrokeWidth(5f);
+		mAnimPaint.setStyle(Paint.Style.STROKE);
+
+		canvas.drawPath(mAnimPath, mAnimPaint);
+
 		// 시작점, 중간점, 끝점을 담당하는 투명 사각형 그리기
 		mPaint.setColor(Color.TRANSPARENT);
 		canvas.drawRect(mRectStart, mPaint);
-		canvas.drawRect(mRectIng, mPaint);
+		canvas.drawRect(mRectIng1, mPaint);
+		canvas.drawRect(mRectIng2, mPaint);
 		canvas.drawRect(mRectEnd, mPaint);
 
-		// 터치를 따라 이동하는 포인터 이미지
-		canvas.drawBitmap(mBitmapPointer, mPointerX, mPointerY, null);
+		// 터치를 따라 이동하는 포인터 이미지 (old)
+//		canvas.drawBitmap(mPathBitmap, mPointerX, mPointerY, null);
+
+		// 터치를 따라 이동하는 포인터 이미지 (new)
+		if (distance < mPathLength) {
+			canvas.drawBitmap(mPathBitmap, mPathMatrix, null);
+		}
 
 		// 터치 이벤트가 시작점, 중간점, 끝점을 적절하게 지나는지 검증
 		if (!mDrawing) {
@@ -213,6 +322,9 @@ public class CustomGestureView extends AppCompatImageView {
 				mPaint.setColor(Color.WHITE);
 			}
 
+			// FIXME
+			mPaint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+
 			// 부드럽게 하기 위해서 원을 추가
 			canvas.drawCircle(arVertex1.get(i-1).x, arVertex1.get(i-1).y, 3, mPaint);
 			canvas.drawLine(arVertex1.get(i-1).x, arVertex1.get(i-1).y, arVertex1.get(i).x, arVertex1.get(i).y, mPaint);
@@ -234,6 +346,10 @@ public class CustomGestureView extends AppCompatImageView {
 			x2 += movePos;
 			y2 += movePos;
 			mPaint.setColor(Color.GREEN);
+
+			// FIXME
+			mPaint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+
 			mPaint.setAlpha(120);
 			canvas.drawLine(x1, y1, x2, y2, mPaint);
 			mPaint.setAlpha(250);
@@ -258,11 +374,20 @@ public class CustomGestureView extends AppCompatImageView {
 
 			mPaint.setColor(Color.GRAY);
 
+			// FIXME
+			mPaint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+
 			canvas.drawLine(x1, y1, x2, y2, mPaint);
 			mPaint.setColor(Color.RED);
 
+			// FIXME
+			mPaint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+
 			canvas.drawCircle(x2, y2, 3, mPaint);
 			mPaint.setColor(Color.BLACK);
+
+			// FIXME
+			mPaint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
 
 			canvas.drawCircle(x1, y1, 3, mPaint);
 		}
@@ -305,22 +430,26 @@ public class CustomGestureView extends AppCompatImageView {
 						String hexColor = String.format("#%06X", (0xFFFFFF & intColor));
 						String addAlpha = GraphicsUtil.getHexaDecimalColorAddedAlpha(hexColor, alpha);
 
+						distance();
+
 						if ( !mRectStart.contains(touchedX, touchedY) ) {
-							initPointerCoordinate();
+//							initPointerCoordinate();
 
 							arVertex1.clear();
 							arVertex2.clear();
 							arVertex3.clear();
+
 							invalidate();// 뷰를 갱신
 							return false;
 						}
 
 						if ( HEX_BACKGROUND_TRANSPARENT.equals(addAlpha) ) {
-							initPointerCoordinate();
+//							initPointerCoordinate();
 
 							arVertex1.clear();
 							arVertex2.clear();
 							arVertex3.clear();
+
 							invalidate();// 뷰를 갱신
 							return false;
 						}
@@ -354,20 +483,46 @@ public class CustomGestureView extends AppCompatImageView {
 					String hexColor = String.format("#%06X", (0xFFFFFF & intColor));
 					String addAlpha = GraphicsUtil.getHexaDecimalColorAddedAlpha(hexColor, alpha);
 
-					if ( mRectIng.contains(touchedX, touchedY) ) {
-						mIsPassRectIng = true;
+					if ( mRectIng1.contains(touchedX, touchedY) ) {
+						mIsPassRectIng1 = true;
+					}
+
+					if ( mRectIng2.contains(touchedX, touchedY) ) {
+						mIsPassRectIng2 = true;
 					}
 
 					if ( HEX_BACKGROUND_TRANSPARENT.equals(addAlpha) ) {
-						initPointerCoordinate();
+//						initPointerCoordinate();
 
 						arVertex1.clear();
 						arVertex2.clear();
 						arVertex3.clear();
+
+						distance();
+
 						invalidate();// 뷰를 갱신
 
 						return false;
 					}
+
+
+					// ==================== TEST START
+
+					if (distance < mPathLength) {
+						mPathMeasure.getPosTan(distance, pos, tan);
+
+						mPathMatrix.reset();
+						float degrees = (float) (Math.atan2(tan[1], tan[0]) * 180.0 / Math.PI);
+						mPathMatrix.postRotate(degrees, bm_offsetX, bm_offsetY);
+						mPathMatrix.postTranslate(pos[0] - bm_offsetX, pos[1] - bm_offsetY);
+
+						distance += mDistanceEachStep;
+					} else {
+						distance = 0;
+					}
+
+					// ==================== TEST END
+
 
 					mPointerX = touchedX - 100;
 					mPointerY = touchedY - 100;
@@ -375,11 +530,13 @@ public class CustomGestureView extends AppCompatImageView {
 					invalidate();// 뷰를 갱신
 
 				} else {
-					initPointerCoordinate();
+//					initPointerCoordinate();
 
 					arVertex1.clear();
 					arVertex2.clear();
 					arVertex3.clear();
+
+					distance();
 
 					invalidate();// 뷰를 갱신
 
@@ -407,38 +564,44 @@ public class CustomGestureView extends AppCompatImageView {
 					String hexColor = String.format("#%06X", (0xFFFFFF & intColor));
 					String addAlpha = GraphicsUtil.getHexaDecimalColorAddedAlpha(hexColor, alpha);
 
-					if (!mIsPassRectIng) {
-						initPointerCoordinate();
+					if ( !mIsPassRectIng1 || !mIsPassRectIng2 ) {
+//						initPointerCoordinate();
 
 						arVertex1.clear();
 						arVertex2.clear();
 						arVertex3.clear();
-						invalidate();// 뷰를 갱신
 
+						distance();
+
+						invalidate();// 뷰를 갱신
 						Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
 						return false;
 					}
 
 					if ( !mRectEnd.contains(touchedX, touchedY) ) {
-						initPointerCoordinate();
+//						initPointerCoordinate();
 
 						arVertex1.clear();
 						arVertex2.clear();
 						arVertex3.clear();
-						invalidate();// 뷰를 갱신
 
+						distance();
+
+						invalidate();// 뷰를 갱신
 						Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
 						return false;
 					}
 //
 					if ( HEX_BACKGROUND_TRANSPARENT.equals(addAlpha) ) {
-						initPointerCoordinate();
+//						initPointerCoordinate();
 
 						arVertex1.clear();
 						arVertex2.clear();
 						arVertex3.clear();
-						invalidate();// 뷰를 갱신
 
+						distance();
+
+						invalidate();// 뷰를 갱신
 						Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
 						return false;
 					}
@@ -581,11 +744,11 @@ public class CustomGestureView extends AppCompatImageView {
 						arVertex3.add(vertex);
 					} // end for each
 
-//					Log.e("ACTION_UP", "arVertex1.size(): " + arVertex1.size() + "");
-//					Log.e("ACTION_UP", "arVertex2.size(): " + arVertex2.size() + "");
-//					Log.e("ACTION_UP", "arVertex3.size(): " + arVertex3.size() + "");
-//					Log.e("ACTION_UP", "AllmoveAngle: " + AllmoveAngle + "");
-//					Log.e("ACTION_UP", "allLength / arVertex2.size(): " + allLength / arVertex2.size());
+					Log.e("ACTION_UP", "arVertex1.size(): " + arVertex1.size() + "");
+					Log.e("ACTION_UP", "arVertex2.size(): " + arVertex2.size() + "");
+					Log.e("ACTION_UP", "arVertex3.size(): " + arVertex3.size() + "");
+					Log.e("ACTION_UP", "AllmoveAngle: " + AllmoveAngle + "");
+					Log.e("ACTION_UP", "allLength / arVertex2.size(): " + allLength / arVertex2.size());
 
 					invalidate();
 
@@ -615,16 +778,29 @@ public class CustomGestureView extends AppCompatImageView {
 						Toast.makeText(mContext, "성공", Toast.LENGTH_SHORT).show();
 
 						return false;
+					} else {
+//						initPointerCoordinate();
+
+						arVertex1.clear();
+						arVertex2.clear();
+						arVertex3.clear();
+
+						distance();
+
+						invalidate();// 뷰를 갱신
 					}
 
 					Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
 
 				} else {
-					initPointerCoordinate();
+//					initPointerCoordinate();
 
 					arVertex1.clear();
 					arVertex2.clear();
 					arVertex3.clear();
+
+					distance();
+
 					invalidate();// 뷰를 갱신
 
 					Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
@@ -643,11 +819,38 @@ public class CustomGestureView extends AppCompatImageView {
 	}
 
 	/**
+	 * 화면 가로/세로 전환 시 호출, 뷰 최초 진입(?) 시 호출
+	 * @param w
+	 * @param h
+	 * @param oldw
+	 * @param oldh
+	 */
+	@Override
+	protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+		super.onSizeChanged(w, h, oldw, oldh);
+
+		Log.e("onSizeChanged", String.format("width: %d, height: %d, oldWidth: %d, oldHeight: %d", w, h, oldw, oldh));
+	}
+
+	/**
+	 *
+	 */
+	private void distance() {
+		distance = 0;
+		mPathMeasure.getPosTan(distance, pos, tan);
+
+		mPathMatrix.reset();
+		float degrees = (float) (Math.atan2(tan[1], tan[0]) * 180.0 / Math.PI);
+		mPathMatrix.postRotate(degrees, bm_offsetX, bm_offsetY);
+		mPathMatrix.postTranslate(pos[0] - bm_offsetX, pos[1] - bm_offsetY);
+	}
+
+	/**
 	 *
 	 */
 	private void initPointerCoordinate() {
-		mPointerX = mWidth - 150;
-		mPointerY = 0;
+		mPointerX = mWidth - 500;
+		mPointerY = 50;
 	}
 
 	/**

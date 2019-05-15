@@ -103,7 +103,7 @@ public class DrawView11 extends RelativeLayout {
 		LayoutInflater.from(mContext).inflate(R.layout.layout_gesture2, this);
 
 		mImageViewPointer = findViewById(R.id.imgView);
-		mButton = findViewById(R.id.btn_login);
+		mButton = findViewById(R.id.btn_quit);
 		mButton.setVisibility(View.VISIBLE);
 		mButton.setEnabled(false);
 

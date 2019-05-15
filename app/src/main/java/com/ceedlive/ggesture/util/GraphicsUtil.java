@@ -1,6 +1,7 @@
 package com.ceedlive.ggesture.util;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -82,7 +83,7 @@ public class GraphicsUtil {
      * @return Bitmap 리사이즈 된 bitmap
      */
     public static Bitmap getResizedBitmapByScale(Bitmap bitmap, int width, int height) {
-        if (bitmap.getWidth() != width || bitmap.getHeight() != height) {
+        if ( bitmap.getWidth() != width || bitmap.getHeight() != height ) {
             float ratio = 1.0f;
 
             if (width > height) {
@@ -92,8 +93,8 @@ public class GraphicsUtil {
             }
 
             bitmap = Bitmap.createScaledBitmap(bitmap,
-                    (int)(((float)bitmap.getWidth()) * ratio), // Width
-                    (int)(((float)bitmap.getHeight()) * ratio), // Height
+                    (int) ( ( (float) bitmap.getWidth() ) * ratio), // Width
+                    (int) ( ( (float) bitmap.getHeight() ) * ratio), // Height
                     false);
         }
 
@@ -247,6 +248,23 @@ public class GraphicsUtil {
             return -1;
         }
         return dp;
+    }
+
+    /**
+     *
+     * @param res
+     * @param density
+     * @param dp
+     * @return
+     */
+    public static float getPixel(Resources res, float density, float dp) {
+        if (density < 0) {
+            density = res.getDisplayMetrics().density;
+        }
+
+        float px = dp * density;
+
+        return px;
     }
 
 }
