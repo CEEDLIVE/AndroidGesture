@@ -12,7 +12,6 @@ import android.graphics.PathMeasure;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -25,10 +24,27 @@ import java.util.ArrayList;
 import androidx.appcompat.widget.AppCompatImageView;
 
 /**
+ * Quick Start
+ * - 커스텀뷰 생성
+ * - 상하좌우 여백이 없는 G 모양의 이미지 리소스 추가
+ * - 화면의 정중앙에 위치하도록 레이아웃 구현
+ * - G 모양 내부를 한붓 그리기로 통과하는 패스 추가
+ * - 패스 위를 움직이는 이미지 리소스 추가
+ * - 커스텀뷰 터치 이벤트 핸들러 추가
+ * - 끝
+ *
+ *
+ * 로직 1)
  * 연속된 직선들을 n 방향으로 구간을 나누고
  * 360도 중에서 해당 구간으로 뻗어 나가는 직선을 인식하여 번호를 부여함
  * 부여된 번호가 미리 정의된 연속된 번호들과 일치 하는지 확인
- * 확인된 값을 근거로 사용자의 입력을 처리하는 방식
+ * 확인된 값을 근거로 사용자의 입력을 처리하는 로직 구현
+ *
+ *
+ * 로직 2)
+ * 문자 모양의 G 내부를 한붓 그리기로 통과하는 패스 생성
+ * 커스텀뷰 터치 이벤트 발생 시 조건에 맞게 패스 위를 통과하며 움직이는 비트맵 이미지 구현
+ *
  */
 public class CustomGestureView extends AppCompatImageView {
 
@@ -46,8 +62,7 @@ public class CustomGestureView extends AppCompatImageView {
 
 	static final String HEX_BACKGROUND_TRANSPARENT = "#00000000";
 
-	private Drawable mDrawable;
-	private Bitmap mBitmap, mBitmapPointer;
+	private Bitmap mBitmap, mPathBitmap;
 
 	private Matrix mMatrix;
 
@@ -62,11 +77,6 @@ public class CustomGestureView extends AppCompatImageView {
 	private boolean mIsPassRectIng1 = false;
 	private boolean mIsPassRectIng2 = false;
 	private boolean mDrawing = false;
-
-	//
-	private int mDrawableWidth, mDrawableHeight;
-	private int mViewWidth, mViewHeight;
-	private int mRealImageWidth, mRealImageHeight;
 
 	private float mDpi;
 	private int mMaxResolution = 1280;
@@ -85,21 +95,16 @@ public class CustomGestureView extends AppCompatImageView {
 	// 끝점
 
 
-	Bitmap bm;
-	int bm_offsetX, bm_offsetY;
+	private Bitmap bm;
+	private int bm_offsetX, bm_offsetY;
 
-	float step;   //distance each step
-	float distance;  //distance moved
+	private float mDistanceEachStep;   //distance each step
+	private float distance;  //distance moved
 
-	float[] pos;
-	float[] tan;
+	private float[] pos;
+	private float[] tan;
 
-	Matrix matrix;
-
-
-
-
-
+	private Matrix mPathMatrix;
 
 	private GesturePointerListener mGesturePointerListener;
 
@@ -125,7 +130,8 @@ public class CustomGestureView extends AppCompatImageView {
 		initialize();
 	}
 
-	// you will need the constructor public MyView(Context context, AttributeSet attrs), otherwise you will get an Exception when Android tries to inflate your View.
+	// you will need the constructor public CustomGestureView(Context context, AttributeSet attrs),
+	// otherwise you will get an Exception when Android tries to inflate your View.
 	/**
 	 * Java Code 에서 뷰를 생성 할 때 호출되는 생성자
 	 * @param context
@@ -140,7 +146,7 @@ public class CustomGestureView extends AppCompatImageView {
 	}
 
 	// if you add your View from xml and also spcify the android:style attribute like : <com.mypack.MyView style="@styles/MyCustomStyle" />
-	// you will also need the first constructor public MyView(Context context, AttributeSet attrs,int defStyle)
+	// you will also need the first constructor public CustomGestureView(Context context, AttributeSet attrs,int defStyle)
 	/**
 	 * Java Code 에서 뷰를 생성 할 때 호출되는 생성자
 	 * @param context
@@ -163,14 +169,11 @@ public class CustomGestureView extends AppCompatImageView {
 
 		mDpi = GraphicsUtil.getDotPerInch(mContext);
 
-		mBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.google_icon_nopad);
+		mBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.google_icon_nopad_circle);
 		mBitmap = GraphicsUtil.getResizedBitmapByResolution(mBitmap, mMaxResolution);
-//		mBitmap = GraphicsUtil.getBitmapFromVectorDrawable(mContext, R.drawable.ic_google);
-//		mBitmap = GraphicsUtil.getResizedBitmapByScale(mBitmap, 1024, 1024);
-//		mBitmapPointer = BitmapFactory.decodeResource(getResources(), R.drawable.ic_hyundai_64);
 
-		mBitmapPointer = GraphicsUtil.getBitmapFromVectorDrawable(mContext, R.drawable.ic_happy);
-		mBitmapPointer = GraphicsUtil.getResizedBitmapByScale(mBitmapPointer, 256, 256);
+		mPathBitmap = GraphicsUtil.getBitmapFromVectorDrawable(mContext, R.drawable.ic_happy);
+		mPathBitmap = GraphicsUtil.getResizedBitmapByScale(mPathBitmap, 256, 256);
 
 		mMatrix = new Matrix();
 
@@ -182,39 +185,9 @@ public class CustomGestureView extends AppCompatImageView {
 		mHeight = mBitmap.getHeight();
 
 		setImageBitmap(mBitmap);
-		mDrawable = getDrawable();
-
-		// ========================================
-		mDrawableWidth = mDrawable.getIntrinsicWidth();
-		mDrawableHeight = mDrawable.getIntrinsicHeight();
-
-		mViewWidth = this.getWidth() - this.getPaddingLeft() - this.getPaddingRight();
-		mViewHeight = this.getHeight() - this.getPaddingTop() - this.getPaddingBottom();
-
-		mRealImageWidth = (int) ( (mViewWidth - mDrawableWidth) * 0.25f );
-		// (I do not know why I had to put 0.25f instead of 0.5f,
-		// but I think this issue is a consequence of the screen density)
-
-		mRealImageHeight = (int) ( (mViewHeight - mDrawableHeight) * 0.25f );
-
-		Log.e("init_variable", "mDrawableWidth: " + mDrawableWidth);
-		Log.e("init_variable", "mDrawableHeight: " + mDrawableHeight);
-
-		Log.e("init_variable", "mViewWidth: " + mViewWidth);
-		Log.e("init_variable", "mViewHeight: " + mViewHeight);
-
-		Log.e("init_variable", "mRealImageWidth: " + mRealImageWidth);
-		Log.e("init_variable", "mRealImageHeight: " + mRealImageHeight);
-
-		Log.e("init_variable", "mWidth: " + mWidth);
-		Log.e("init_variable", "mHeight: " + mHeight);
-		// ========================================
 
 		mPointStart = new float[2];
 		mPointEnd = new float[2];
-//
-//		mPointStart[0] = mWidth * (3/4);
-//		mPointStart[1] = mHeight * (1/6);
 
 		mPointStart[0] = (float) (mWidth * 0.75);
 		mPointStart[1] = (float) (mHeight * 0.25);
@@ -237,94 +210,39 @@ public class CustomGestureView extends AppCompatImageView {
 		mAnimPath = new Path();
 		mPathMeasure = new PathMeasure();
 
-		initPointerCoordinate();
+//		initPointerCoordinate();
 
 
 
 		bm = BitmapFactory.decodeResource(getResources(), R.drawable.ic_hyundai_64);
-		bm_offsetX = bm.getWidth() / 2;
-		bm_offsetY = bm.getHeight() / 2;
-
+		bm_offsetX = mPathBitmap.getWidth() / 2;
+		bm_offsetY = mPathBitmap.getHeight() / 2;
 
 		initPath();
+		distance();
 	}
 
 	private void initPath() {
-//		mAnimPath.moveTo(100, 100);
-//		mAnimPath.moveTo(mPointerX, mPointerY);
-//		mAnimPath.lineTo(200, 100);
-//		mAnimPath.lineTo(300, 50);
-//		mAnimPath.lineTo(400, 150);
-//		mAnimPath.lineTo(100, 300);
-//		mAnimPath.lineTo(600, 300);
-//		mAnimPath.lineTo(100, 100);
-
-
-
-//		mAnimPath.close();
-
-		mPathLength = mPathMeasure.getLength();
-
-
-		Toast.makeText(getContext(), "mPathLength: " + mPathLength, Toast.LENGTH_LONG).show();
-
-		step = 10; // ?
+		mDistanceEachStep = 10; // ?
 		distance = 0;
 		pos = new float[2];
 		tan = new float[2];
 
-		matrix = new Matrix();
-
-
-//		mAnimPath.moveTo( (float) (mWidth * Math.sqrt(2) / 2), 200 );
-//		mAnimPath.quadTo( (float) (mWidth * (1 - Math.sqrt(2) / 2)), 100,
-//				(float) (mWidth * (1 - Math.sqrt(3) / 2)), mHeight / 2 );
-//
-//		mAnimPath.cubicTo( (float) (mWidth * (1 - Math.sqrt(3) / 2)), mHeight / 2,
-//				mWidth / 2, 1100,
-//				(float) (mWidth * Math.sqrt(3) / 2), mHeight / 2 );
-
-
-		// start
-//		mAnimPath.moveTo( (float) (mWidth * Math.sqrt(2) / 2), 50 );
-
+		mPathMatrix = new Matrix();
 
 		RectF oval = new RectF();
 		int weight = 150;// 가변
-//		oval.offsetTo(mWidth / 2, mHeight / 2);
 		oval.set(0 + weight, 0 + weight, mWidth - weight, mHeight - weight);
 
-//		mAnimPath.arcTo(oval, 45f, 270f);
 		mAnimPath.arcTo(oval, -45f, -315f);
 		mAnimPath.lineTo(mWidth / 2, mHeight / 2);
-
-		//
-//		mAnimPath.moveTo( (float) (mWidth * Math.sqrt(2) / 2), 50 );
-//		mAnimPath.lineTo( (float) (mWidth * Math.sqrt(2) / 2), 50 );
-//		mAnimPath.lineTo( mWidth / 2, 50 );
-//		mAnimPath.lineTo( (float) (mWidth * (1 - Math.sqrt(2) / 2)), 50 );
-//
-//		mAnimPath.lineTo( (float) (mWidth * (1 - Math.sqrt(3) / 2)), mHeight/2 );
-//
-//		mAnimPath.lineTo( (float) (mWidth * (1 - Math.sqrt(2) / 2)), 1100 );
-//		mAnimPath.lineTo( mWidth / 2, 1100 );
-//		mAnimPath.lineTo( (float) (mWidth * Math.sqrt(2) / 2), 1100 );
-//
-//		mAnimPath.lineTo( (float) (mWidth * Math.sqrt(3) / 2), mHeight/2 );
-//		mAnimPath.lineTo( mWidth / 2, mHeight / 2 );
-
-		Log.e("mAnimPath", "1: " + (float) (mHeight * Math.sqrt(1) / 2) );
-		Log.e("mAnimPath", "2: " + (float) (mHeight * Math.sqrt(2) / 2) );
-		Log.e("mAnimPath", "3: " + (float) (mHeight * Math.sqrt(3) / 2) );
-
-		// center
-//		mAnimPath.lineTo(mPointEnd[0], mPointEnd[1]);
 
 		mAnimPath.close();
 
 		mPathMeasure = new PathMeasure(mAnimPath, false);
 		mPathLength = mPathMeasure.getLength();
 
+		Log.e("initPath", "mPathLength: " + mPathLength);
 	}
 
 	// onDraw
@@ -337,106 +255,31 @@ public class CustomGestureView extends AppCompatImageView {
 	public void onDraw(Canvas canvas) {
 		super.onDraw(canvas);
 
-//		mAnimPaint.setColor(Color.RED);
 		mAnimPaint.setColor(Color.TRANSPARENT);
 		mAnimPaint.setStrokeWidth(5f);
 		mAnimPaint.setStyle(Paint.Style.STROKE);
 
-//		mAnimPath.moveTo(mPointStart[0], mPointStart[1]);
-//		mAnimPath.moveTo(mPointerX, mPointerY);
-//		mAnimPath.moveTo(450,500);
-//		mAnimPath.lineTo(450,500);
-//		mAnimPath.lineTo(400,600);
-//		mAnimPath.lineTo(300,600);
-//		mAnimPath.lineTo(400,700);
-//		mAnimPath.lineTo(350,800);
-//		mAnimPath.lineTo(450,700);
-//		mAnimPath.lineTo(550,800);
-//		mAnimPath.lineTo(500,700);
-//		mAnimPath.lineTo(600,600);
-//		mAnimPath.lineTo(500,600);
-
-
-//		mAnimPath.lineTo(mPointStart[0], mPointStart[1]);
-//		mAnimPath.lineTo(mPointerX, mPointerY);
-
-//		mAnimPath.moveTo(mPointEnd[0], mPointEnd[1] + mPointEnd[1]);
-
-//		float xxx = mPointEnd[0] + (mPointEnd[0] / 2);
-//		float yyy = mPointEnd[1] / 8;
-
-//		mAnimPath.moveTo(mPointEnd[0] + (mPointEnd[0] / 2), yyy);
-
-
-
 		canvas.drawPath(mAnimPath, mAnimPaint);
-
-
-		// TEST
-
-//		Log.e("onDraw", "mPointerX: " + mPointerX);
-//		Log.e("onDraw", "mPointerY: " + mPointerY);
-
-
-		// TEST
-
 
 		// 시작점, 중간점, 끝점을 담당하는 투명 사각형 그리기
 		mPaint.setColor(Color.TRANSPARENT);
-//		mPaint.setColor(Color.RED);
 		canvas.drawRect(mRectStart, mPaint);
 		canvas.drawRect(mRectIng1, mPaint);
 		canvas.drawRect(mRectIng2, mPaint);
 		canvas.drawRect(mRectEnd, mPaint);
 
-		// 터치를 따라 이동하는 포인터 이미지
-//		canvas.drawBitmap(mBitmapPointer, mPointerX, mPointerY, null);
+		// 터치를 따라 이동하는 포인터 이미지 (old)
+//		canvas.drawBitmap(mPathBitmap, mPointerX, mPointerY, null);
 
-//		boolean isPosTan = mPathMeasure.getPosTan(distance, pos, tan);
-//
-//		matrix.reset();
-//		float degrees = (float) (Math.atan2(tan[1], tan[0]) * 180.0 / Math.PI);
-//		matrix.postRotate(degrees, bm_offsetX, bm_offsetY);
-//		matrix.postTranslate(pos[0] - bm_offsetX, pos[1] - bm_offsetY);
-//		canvas.drawBitmap(bm, matrix, null);
-//
-//		canvas.drawColor(Color.argb(100, 255, 0, 0));
-
-
-
-
-
-
-
+		// 터치를 따라 이동하는 포인터 이미지 (new)
 		if (distance < mPathLength) {
-			canvas.drawBitmap(bm, matrix, null);
+			canvas.drawBitmap(mPathBitmap, mPathMatrix, null);
 		}
-
-//		invalidate();
-
-
-//		Log.e("onDraw","isPosTan: " + isPosTan);
-//		Log.e("onDraw","degrees: " + degrees);
-//		Log.e("onDraw","bm_offsetX: " + bm_offsetX);
-//		Log.e("onDraw","bm_offsetY: " + bm_offsetY);
-
 
 		// 터치 이벤트가 시작점, 중간점, 끝점을 적절하게 지나는지 검증
 		if (!mDrawing) {
 			return;
 		}
-
-
-
-		// ========================================
-
-
-
-		// ========================================
-
-
-
-
 
 		mIsAuthorized = false;
 		mGesturePointerListener.onButtonEnabled(false);
@@ -479,6 +322,9 @@ public class CustomGestureView extends AppCompatImageView {
 				mPaint.setColor(Color.WHITE);
 			}
 
+			// FIXME
+			mPaint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+
 			// 부드럽게 하기 위해서 원을 추가
 			canvas.drawCircle(arVertex1.get(i-1).x, arVertex1.get(i-1).y, 3, mPaint);
 			canvas.drawLine(arVertex1.get(i-1).x, arVertex1.get(i-1).y, arVertex1.get(i).x, arVertex1.get(i).y, mPaint);
@@ -500,6 +346,10 @@ public class CustomGestureView extends AppCompatImageView {
 			x2 += movePos;
 			y2 += movePos;
 			mPaint.setColor(Color.GREEN);
+
+			// FIXME
+			mPaint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+
 			mPaint.setAlpha(120);
 			canvas.drawLine(x1, y1, x2, y2, mPaint);
 			mPaint.setAlpha(250);
@@ -524,11 +374,20 @@ public class CustomGestureView extends AppCompatImageView {
 
 			mPaint.setColor(Color.GRAY);
 
+			// FIXME
+			mPaint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+
 			canvas.drawLine(x1, y1, x2, y2, mPaint);
 			mPaint.setColor(Color.RED);
 
+			// FIXME
+			mPaint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
+
 			canvas.drawCircle(x2, y2, 3, mPaint);
 			mPaint.setColor(Color.BLACK);
+
+			// FIXME
+			mPaint.setColor(Color.TRANSPARENT);// 선 안 보이게 처리
 
 			canvas.drawCircle(x1, y1, 3, mPaint);
 		}
@@ -574,7 +433,7 @@ public class CustomGestureView extends AppCompatImageView {
 						distance();
 
 						if ( !mRectStart.contains(touchedX, touchedY) ) {
-							initPointerCoordinate();
+//							initPointerCoordinate();
 
 							arVertex1.clear();
 							arVertex2.clear();
@@ -585,7 +444,7 @@ public class CustomGestureView extends AppCompatImageView {
 						}
 
 						if ( HEX_BACKGROUND_TRANSPARENT.equals(addAlpha) ) {
-							initPointerCoordinate();
+//							initPointerCoordinate();
 
 							arVertex1.clear();
 							arVertex2.clear();
@@ -633,7 +492,7 @@ public class CustomGestureView extends AppCompatImageView {
 					}
 
 					if ( HEX_BACKGROUND_TRANSPARENT.equals(addAlpha) ) {
-						initPointerCoordinate();
+//						initPointerCoordinate();
 
 						arVertex1.clear();
 						arVertex2.clear();
@@ -652,12 +511,12 @@ public class CustomGestureView extends AppCompatImageView {
 					if (distance < mPathLength) {
 						mPathMeasure.getPosTan(distance, pos, tan);
 
-						matrix.reset();
+						mPathMatrix.reset();
 						float degrees = (float) (Math.atan2(tan[1], tan[0]) * 180.0 / Math.PI);
-						matrix.postRotate(degrees, bm_offsetX, bm_offsetY);
-						matrix.postTranslate(pos[0] - bm_offsetX, pos[1] - bm_offsetY);
+						mPathMatrix.postRotate(degrees, bm_offsetX, bm_offsetY);
+						mPathMatrix.postTranslate(pos[0] - bm_offsetX, pos[1] - bm_offsetY);
 
-						distance += step;
+						distance += mDistanceEachStep;
 					} else {
 						distance = 0;
 					}
@@ -671,7 +530,7 @@ public class CustomGestureView extends AppCompatImageView {
 					invalidate();// 뷰를 갱신
 
 				} else {
-					initPointerCoordinate();
+//					initPointerCoordinate();
 
 					arVertex1.clear();
 					arVertex2.clear();
@@ -706,7 +565,7 @@ public class CustomGestureView extends AppCompatImageView {
 					String addAlpha = GraphicsUtil.getHexaDecimalColorAddedAlpha(hexColor, alpha);
 
 					if ( !mIsPassRectIng1 || !mIsPassRectIng2 ) {
-						initPointerCoordinate();
+//						initPointerCoordinate();
 
 						arVertex1.clear();
 						arVertex2.clear();
@@ -720,7 +579,7 @@ public class CustomGestureView extends AppCompatImageView {
 					}
 
 					if ( !mRectEnd.contains(touchedX, touchedY) ) {
-						initPointerCoordinate();
+//						initPointerCoordinate();
 
 						arVertex1.clear();
 						arVertex2.clear();
@@ -734,7 +593,7 @@ public class CustomGestureView extends AppCompatImageView {
 					}
 //
 					if ( HEX_BACKGROUND_TRANSPARENT.equals(addAlpha) ) {
-						initPointerCoordinate();
+//						initPointerCoordinate();
 
 						arVertex1.clear();
 						arVertex2.clear();
@@ -920,7 +779,7 @@ public class CustomGestureView extends AppCompatImageView {
 
 						return false;
 					} else {
-						initPointerCoordinate();
+//						initPointerCoordinate();
 
 						arVertex1.clear();
 						arVertex2.clear();
@@ -934,7 +793,7 @@ public class CustomGestureView extends AppCompatImageView {
 					Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
 
 				} else {
-					initPointerCoordinate();
+//					initPointerCoordinate();
 
 					arVertex1.clear();
 					arVertex2.clear();
@@ -973,31 +832,18 @@ public class CustomGestureView extends AppCompatImageView {
 		Log.e("onSizeChanged", String.format("width: %d, height: %d, oldWidth: %d, oldHeight: %d", w, h, oldw, oldh));
 	}
 
-	private void aaa() {
-		if (distance < mPathLength) {
-			mPathMeasure.getPosTan(distance, pos, tan);
-
-			matrix.reset();
-			float degrees = (float) (Math.atan2(tan[1], tan[0]) * 180.0 / Math.PI);
-			matrix.postRotate(degrees, bm_offsetX, bm_offsetY);
-			matrix.postTranslate(pos[0] - bm_offsetX, pos[1] - bm_offsetY);
-
-			distance += step;
-		} else {
-			distance = 0;
-		}
-	}
-
+	/**
+	 *
+	 */
 	private void distance() {
 		distance = 0;
 		mPathMeasure.getPosTan(distance, pos, tan);
 
-		matrix.reset();
+		mPathMatrix.reset();
 		float degrees = (float) (Math.atan2(tan[1], tan[0]) * 180.0 / Math.PI);
-		matrix.postRotate(degrees, bm_offsetX, bm_offsetY);
-		matrix.postTranslate(pos[0] - bm_offsetX, pos[1] - bm_offsetY);
+		mPathMatrix.postRotate(degrees, bm_offsetX, bm_offsetY);
+		mPathMatrix.postTranslate(pos[0] - bm_offsetX, pos[1] - bm_offsetY);
 	}
-
 
 	/**
 	 *

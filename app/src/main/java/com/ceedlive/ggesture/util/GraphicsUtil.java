@@ -250,6 +250,13 @@ public class GraphicsUtil {
         return dp;
     }
 
+    /**
+     *
+     * @param res
+     * @param density
+     * @param dp
+     * @return
+     */
     public static float getPixel(Resources res, float density, float dp) {
         if (density < 0) {
             density = res.getDisplayMetrics().density;

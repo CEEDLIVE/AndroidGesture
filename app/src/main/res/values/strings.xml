@@ -12,4 +12,6 @@
 
     <string name="gesture_guide">\"G\" 시작점의 볼을 중앙으로 드래그 하면\n차량에 시동이 걸리고,\n원격 제어가 활성화 됩니다.</string>
     <string name="btn_quit">종료</string>
+
+    <string name="text_move_before">이전 화면으로 이동 합니다.</string>
 </resources>
