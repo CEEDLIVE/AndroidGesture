@@ -75,10 +75,13 @@ public class CustomGestureView extends AppCompatImageView {
 
 	private int mWidth, mHeight;
 
-	private Rect mRectStart, mRectIng1, mRectIng2, mRectEnd;
+	private Rect mRectStart, mRectIngNorth, mRectIngWest, mRectIngSouth, mRectIngEast, mRectEnd;
 	private RectF mPathRectF;
 
-	private boolean mIsAuthorized, mIsPassRectIng1, mIsPassRectIng2, mIsDrawing;
+	private boolean mIsAuthorized;
+	private boolean mIsPassRectIngNorth, mIsPassRectIngWest, mIsPassRectIngSouth, mIsPassRectIngEast;
+	private boolean mIsDrawing;
+	private boolean mIsPathPointerPathThrough;// 패스 위를 움직이는 포인터가 끝점에 도달하였는지 체크
 
 	static final int mMaxResolution = 1280;
 
@@ -110,18 +113,16 @@ public class CustomGestureView extends AppCompatImageView {
 
 	private List<Rect> mValidationRectLIst;
 
-
 	// 선분
 	private double mSection = 2 * sPi / sSectionNum;
 	private float mAllAngle = 0, allAngle1 = 0, allLength = 0;
 	private boolean allAngleReset = true;
 
 
-	private GesturePointerListener mGesturePointerListener;
-
-
 	private CheckForLongPress checkForLongPress;
 
+
+	private GesturePointerListener mGesturePointerListener;
 
 	public interface GesturePointerListener {
 		void onButtonEnabled(boolean isEnabled);
@@ -219,40 +220,61 @@ public class CustomGestureView extends AppCompatImageView {
 
 		// set validation rect
 		{
+			// 시작점 (오른쪽 45도)
 			int left_start = mWidth * 2/3;
 			int top_start = 0;
 			int right_start = mWidth;
 			int bottom_start = (int) ( mHeight * (1 - Math.sqrt(2) / 2) );
 
-			int left_ing1 = 0;
-			int top_ing1 = mHeight * 1/3;
-			int right_ing1 = mWidth * 1/3;
-			int bottom_ing1 = mHeight * 2/3;
+			// 북
+			int left_ing_north = mWidth * 1/3;
+			int top_ing_north = 0;
+			int right_ing_north = mWidth * 2/3;
+			int bottom_ing_north = (int) ( mHeight * (1 - Math.sqrt(2) / 2) );
 
-			int left_ing2 = mWidth * 2/3;
-			int top_ing2 = mHeight * 1/3;
-			int right_ing2 = mWidth;
-			int bottom_ing2 = mHeight * 2/3;
+			// 서
+			int left_ing_west = 0;
+			int top_ing_west = mHeight * 1/3;
+			int right_ing_west = mWidth * 1/3;
+			int bottom_ing_west = mHeight * 2/3;
 
+			// 동
+			int left_ing_east = mWidth * 2/3;
+			int top_ing_east = mHeight * 1/3;
+			int right_ing_east = mWidth;
+			int bottom_ing_east = mHeight * 2/3;
+
+			// 남
+			int left_ing_south = mWidth * 1/3;
+			int top_ing_south = mHeight * 2/3;
+			int right_ing_south = mWidth * 2/3;
+			int bottom_ing_south = mHeight;
+
+			// 끝점 (중앙)
 			int left_end = mWidth * 1/3;
 			int top_end = mHeight * 1/3;
 			int right_end = mWidth * 2/3;
 			int bottom_end = mHeight * 2/3;
 
 //			mRectStart = new Rect(left, 0, mWidth - 200, 350); // 사각형 영역을 만든다
-			mRectStart = new Rect(left_start, top_start, right_start, bottom_start); // 사각형 영역을 만든다
 //			mRectIng1 = new Rect(0, (mHeight / 2) - 200, 400, (mHeight / 2) + 200); // 사각형 영역을 만든다
-			mRectIng1 = new Rect(left_ing1, top_ing1, right_ing1, bottom_ing1); // 사각형 영역을 만든다
 //			mRectIng2 = new Rect(mWidth - 400, (mHeight / 2) - 200, mWidth, (mHeight / 2) + 200); // 사각형 영역을 만든다
-			mRectIng2 = new Rect(left_ing2, top_ing2, right_ing2, bottom_ing2); // 사각형 영역을 만든다
 //			mRectEnd = new Rect(mWidth - 800, (mHeight / 2) - 200, mWidth - 400, (mHeight / 2) + 200); // 사각형 영역을 만든다
+
+			mRectStart = new Rect(left_start, top_start, right_start, bottom_start); // 사각형 영역을 만든다
+			mRectIngNorth = new Rect(left_ing_north, top_ing_north, right_ing_north, bottom_ing_north); // 사각형 영역을 만든다
+			mRectIngWest = new Rect(left_ing_west, top_ing_west, right_ing_west, bottom_ing_west); // 사각형 영역을 만든다
+			mRectIngSouth = new Rect(left_ing_south, top_ing_south, right_ing_south, bottom_ing_south); // 사각형 영역을 만든다
+			mRectIngEast = new Rect(left_ing_east, top_ing_east, right_ing_east, bottom_ing_east); // 사각형 영역을 만든다
 			mRectEnd = new Rect(left_end, top_end, right_end, bottom_end); // 사각형 영역을 만든다
 
 			mValidationRectLIst = new ArrayList<>();
 
 			mValidationRectLIst.add(mRectStart);
-			mValidationRectLIst.add(mRectIng1);
-			mValidationRectLIst.add(mRectIng2);
+			mValidationRectLIst.add(mRectIngNorth);
+			mValidationRectLIst.add(mRectIngWest);
+			mValidationRectLIst.add(mRectIngSouth);
+			mValidationRectLIst.add(mRectIngEast);
 			mValidationRectLIst.add(mRectEnd);
 		}
 
@@ -266,6 +288,8 @@ public class CustomGestureView extends AppCompatImageView {
 			mPathRectFWeight = 128;// 가변
 			mPathRectF.set(0 + mPathRectFWeight, 0 + mPathRectFWeight, mWidth - mPathRectFWeight, mHeight - mPathRectFWeight);
 			mAnimPath.arcTo(mPathRectF, -45f, -315f);
+
+
 			mAnimPath.lineTo(mWidth / 2, mHeight / 2);
 			mAnimPath.close();
 
@@ -283,8 +307,11 @@ public class CustomGestureView extends AppCompatImageView {
 		// set default flag
 		{
 			mIsAuthorized = false; // 접근 권한
-			mIsPassRectIng1 = false; // 첫 번째 영역 통과
-			mIsPassRectIng2 = false; // 두 번째 영역 통과
+			mIsPassRectIngNorth = false; // 첫 번째 영역 통과
+			mIsPassRectIngWest = false; // 두 번째 영역 통과
+			mIsPassRectIngSouth = false; // 두 번째 영역 통과
+			mIsPassRectIngEast = false; // 두 번째 영역 통과
+
 			mIsDrawing = false; // onDraw 메서드 전체 실행 여부
 		}
 
@@ -574,8 +601,6 @@ public class CustomGestureView extends AppCompatImageView {
 
 				{
 					// 롱터치 탐지 로직 시작
-//					checkForLongPress.mLastMotionX = event.getX();
-//					checkForLongPress.mLastMotionY = event.getY();// 시작 위치 저장
 					checkForLongPress.mLastMotionX = mMotionEventCurrentTouchedX;
 					checkForLongPress.mLastMotionY = mMotionEventCurrentTouchedY;// 시작 위치 저장
 					checkForLongPress.mHasPerformedLongPress = false;
@@ -645,12 +670,28 @@ public class CustomGestureView extends AppCompatImageView {
 				mGShapeCurrentHexColor = CustomUtil.getHexColor(mGShapeCurrentRgbIntColor);
 				mGShapeCurrentHexColorAddedAlpha = CustomUtil.getHexaDecimalColorAddedAlpha(mGShapeCurrentHexColor, mGShapeCurrentAlpha);
 
-				if ( mRectIng1.contains(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY) ) {
-					mIsPassRectIng1 = true;
+				if ( mRectIngNorth.contains(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY) ) {
+					mIsPassRectIngNorth = true;
+					Log.e("handleTouchMove", "북쪽 첫번째 지점 통과");// FIXME
 				}
 
-				if ( mRectIng2.contains(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY) ) {
-					mIsPassRectIng2 = true;
+				if ( mRectIngWest.contains(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY) ) {
+					mIsPassRectIngWest = true;
+					Log.e("handleTouchMove", "서쪽 두번째 지점 통과");// FIXME
+				}
+
+				if ( mRectIngSouth.contains(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY) ) {
+					mIsPassRectIngSouth = true;
+					Log.e("handleTouchMove", "남쪽 세번째 지점 통과");// FIXME
+				}
+
+				if ( mRectIngEast.contains(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY) ) {
+					mIsPassRectIngEast = true;
+					Log.e("handleTouchMove", "동쪽 네번째 지점 통과");// FIXME
+				}
+
+				if ( mRectEnd.contains(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY) ) {
+					Log.e("handleTouchMove", "중앙 마지막 지점 통과");// FIXME
 				}
 
 				if ( HEX_BACKGROUND_TRANSPARENT.equals(mGShapeCurrentHexColorAddedAlpha) ) {
@@ -659,12 +700,9 @@ public class CustomGestureView extends AppCompatImageView {
 					return false;
 				}
 
-				final float x = event.getX();
-				final float y = event.getY();
 				final int deltaX = Math.abs((int) (checkForLongPress.mLastMotionX - mMotionEventCurrentTouchedX));
 				final int deltaY = Math.abs((int) (checkForLongPress.mLastMotionY - mMotionEventCurrentTouchedY));
 				{
-
 					// ====================
 
 					// 일정 범위 벗어나면 취소함
@@ -689,7 +727,6 @@ public class CustomGestureView extends AppCompatImageView {
 
 					// ====================
 
-
 					// 일정 범위 벗어나면 취소함
 					if (deltaX >= checkForLongPress.mTouchSlop || deltaY >= checkForLongPress.mTouchSlop) {
 						if (!checkForLongPress.mHasPerformedLongPress) {
@@ -699,8 +736,6 @@ public class CustomGestureView extends AppCompatImageView {
 					}
 				}
 
-
-
 				// ========================================
 				// logic1
 
@@ -709,12 +744,12 @@ public class CustomGestureView extends AppCompatImageView {
 					Log.e("롱터치 탐지 로직 진행", "==============================");
 				}
 
-//				float weight = mDistanceEachStep * mDistanceEachStep;
-				float weight = 64f;
-
 				if ( mPathLength - mDistanceMoved < 32 ) {
 					// 끝점에 다다른 경우 포인터 유지
 					Log.e("롱터치 탐지 로직 진행", "유지");
+
+					mIsPathPointerPathThrough = true;
+
 				} else {
 					if (mDistanceMoved < mPathLength) {
 //						if (deltaX + deltaY + weight > mDistanceMoved) {
@@ -770,7 +805,28 @@ public class CustomGestureView extends AppCompatImageView {
 				mGShapeCurrentHexColor = CustomUtil.getHexColor(mGShapeCurrentRgbIntColor);
 				mGShapeCurrentHexColorAddedAlpha = CustomUtil.getHexaDecimalColorAddedAlpha(mGShapeCurrentHexColor, mGShapeCurrentAlpha);
 
-				if ( !mIsPassRectIng1 || !mIsPassRectIng2 ) {
+				if (!mIsPassRectIngNorth) {
+					initMotionTouchEvent();// 초기화
+					invalidate();// 뷰를 갱신
+					Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
+					return false;
+				}
+
+				if (!mIsPassRectIngWest) {
+					initMotionTouchEvent();// 초기화
+					invalidate();// 뷰를 갱신
+					Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
+					return false;
+				}
+
+				if (!mIsPassRectIngSouth) {
+					initMotionTouchEvent();// 초기화
+					invalidate();// 뷰를 갱신
+					Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
+					return false;
+				}
+
+				if (!mIsPassRectIngEast) {
 					initMotionTouchEvent();// 초기화
 					invalidate();// 뷰를 갱신
 					Toast.makeText(mContext, "문자 형태에 맞게 다시 한번 제스처를 취해보세요.", Toast.LENGTH_SHORT).show();
@@ -798,8 +854,13 @@ public class CustomGestureView extends AppCompatImageView {
 					return false;
 				}
 
-				//
-
+				// 동그라미가 끝점에 도달하였는지 체크
+				if (!mIsPathPointerPathThrough) {
+					initMotionTouchEvent();// 초기화
+					invalidate();// 뷰를 갱신
+					Toast.makeText(mContext, "터치가 너무 빨라요. 동그라미가 끝점에 도달할 수 있도록 다시 한번 천천히 이동해 보세요.", Toast.LENGTH_SHORT).show();
+					return false;
+				}
 
 				arrVertex2.add(arrVertex1.get(0));
 				for (int i=1; i<arrVertex1.size(); i+=1) {
@@ -952,11 +1013,6 @@ public class CustomGestureView extends AppCompatImageView {
 					mGesturePointerListener.onButtonEnabled(true);
 					Toast.makeText(mContext, "성공", Toast.LENGTH_SHORT).show();
 
-					// TEST
-					arrVertex1.clear();
-					arrVertex2.clear();
-					arrVertex3.clear();
-
 					return true;
 				} else {
 					initMotionTouchEvent();// 초기화
@@ -1011,6 +1067,7 @@ public class CustomGestureView extends AppCompatImageView {
 		mPathMatrix.postTranslate(mPathPos[0] - mPathBitmapOffsetX, mPathPos[1] - mPathBitmapOffsetY);
 
 		mIsDrawing = false;
+		mIsPathPointerPathThrough = false;
 	} // end method distance
 
 	/**
