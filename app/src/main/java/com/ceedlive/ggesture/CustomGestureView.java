@@ -258,7 +258,7 @@ public class CustomGestureView extends AppCompatImageView {
 
 		// set path
 		{
-			mDistanceEachStep = 5; // 패스 위를 움직이는 이미지의 이동속도
+			mDistanceEachStep = 10; // 패스 위를 움직이는 이미지의 이동속도
 			mDistanceMoved = 0;
 			mPathPos = new float[2];
 			mPathTan = new float[2];
@@ -659,7 +659,6 @@ public class CustomGestureView extends AppCompatImageView {
 					return false;
 				}
 
-
 				final float x = event.getX();
 				final float y = event.getY();
 				final int deltaX = Math.abs((int) (checkForLongPress.mLastMotionX - mMotionEventCurrentTouchedX));
@@ -669,24 +668,24 @@ public class CustomGestureView extends AppCompatImageView {
 					// ====================
 
 					// 일정 범위 벗어나면 취소함
-					Log.e("롱터치 탐지 로직 진행", "checkForLongPress.mLastMotionX: " + checkForLongPress.mLastMotionX);
-					Log.e("롱터치 탐지 로직 진행", "checkForLongPress.mLastMotionY: " + checkForLongPress.mLastMotionY);
-					Log.e("롱터치 탐지 로직 진행", "checkForLongPress.mLastMotionX - mMotionEventCurrentTouchedX: " + (checkForLongPress.mLastMotionX - mMotionEventCurrentTouchedX) );
-					Log.e("롱터치 탐지 로직 진행", "checkForLongPress.mLastMotionY - mMotionEventCurrentTouchedY: " + (checkForLongPress.mLastMotionY - mMotionEventCurrentTouchedY) );
-					Log.e("롱터치 탐지 로직 진행", "deltaX: " + deltaX);
-					Log.e("롱터치 탐지 로직 진행", "deltaY: " + deltaY);
-					Log.e("롱터치 탐지 로직 진행", "x: " + x);
-					Log.e("롱터치 탐지 로직 진행", "y: " + y);
-					Log.e("롱터치 탐지 로직 진행", "checkForLongPress.mTouchSlop: " + checkForLongPress.mTouchSlop);
-					Log.e("롱터치 탐지 로직 진행", "mMotionEventCurrentTouchedX: " + mMotionEventCurrentTouchedX);
-					Log.e("롱터치 탐지 로직 진행", "mMotionEventCurrentTouchedY: " + mMotionEventCurrentTouchedY);
-					Log.e("롱터치 탐지 로직 진행", "mDistanceMoved: " + mDistanceMoved);
-					Log.e("롱터치 탐지 로직 진행", "mPathLength: " + mPathLength);
-					Log.e("롱터치 탐지 로직 진행", "deltaX + deltaY + mDistanceEachStep: " + (deltaX + deltaY + mDistanceEachStep) );
-					Log.e("롱터치 탐지 로직 진행", "mPathDegrees: " + mPathDegrees);
-					Log.e("롱터치 탐지 로직 진행", "mPathBitmapOffsetX: " + mPathBitmapOffsetX);
-					Log.e("롱터치 탐지 로직 진행", "mPathBitmapOffsetY: " + mPathBitmapOffsetY);
-					Log.e("롱터치 탐지 로직 진행", "==============================");
+//					Log.e("롱터치 탐지 로직 진행", "checkForLongPress.mLastMotionX: " + checkForLongPress.mLastMotionX);
+//					Log.e("롱터치 탐지 로직 진행", "checkForLongPress.mLastMotionY: " + checkForLongPress.mLastMotionY);
+//					Log.e("롱터치 탐지 로직 진행", "checkForLongPress.mLastMotionX - mMotionEventCurrentTouchedX: " + (checkForLongPress.mLastMotionX - mMotionEventCurrentTouchedX) );
+//					Log.e("롱터치 탐지 로직 진행", "checkForLongPress.mLastMotionY - mMotionEventCurrentTouchedY: " + (checkForLongPress.mLastMotionY - mMotionEventCurrentTouchedY) );
+//					Log.e("롱터치 탐지 로직 진행", "deltaX: " + deltaX);
+//					Log.e("롱터치 탐지 로직 진행", "deltaY: " + deltaY);
+//					Log.e("롱터치 탐지 로직 진행", "x: " + x);
+//					Log.e("롱터치 탐지 로직 진행", "y: " + y);
+//					Log.e("롱터치 탐지 로직 진행", "checkForLongPress.mTouchSlop: " + checkForLongPress.mTouchSlop);
+//					Log.e("롱터치 탐지 로직 진행", "mMotionEventCurrentTouchedX: " + mMotionEventCurrentTouchedX);
+//					Log.e("롱터치 탐지 로직 진행", "mMotionEventCurrentTouchedY: " + mMotionEventCurrentTouchedY);
+//					Log.e("롱터치 탐지 로직 진행", "mDistanceMoved: " + mDistanceMoved);
+//					Log.e("롱터치 탐지 로직 진행", "mPathLength: " + mPathLength);
+//					Log.e("롱터치 탐지 로직 진행", "deltaX + deltaY + mDistanceEachStep: " + (deltaX + deltaY + mDistanceEachStep) );
+//					Log.e("롱터치 탐지 로직 진행", "mPathDegrees: " + mPathDegrees);
+//					Log.e("롱터치 탐지 로직 진행", "mPathBitmapOffsetX: " + mPathBitmapOffsetX);
+//					Log.e("롱터치 탐지 로직 진행", "mPathBitmapOffsetY: " + mPathBitmapOffsetY);
+//					Log.e("롱터치 탐지 로직 진행", "==============================");
 
 					// ====================
 
@@ -713,7 +712,7 @@ public class CustomGestureView extends AppCompatImageView {
 //				float weight = mDistanceEachStep * mDistanceEachStep;
 				float weight = 64f;
 
-				if ( Math.abs(mDistanceMoved - mPathLength) < 32 ) {
+				if ( mPathLength - mDistanceMoved < 32 ) {
 					// 끝점에 다다른 경우 포인터 유지
 					Log.e("롱터치 탐지 로직 진행", "유지");
 				} else {
@@ -729,18 +728,7 @@ public class CustomGestureView extends AppCompatImageView {
 					} else {
 						mDistanceMoved = 0;
 					}
-				}
 
-
-				if (mDistanceMoved < mPathLength) {
-					mPathMeasure.getPosTan(mDistanceMoved, mPathPos, mPathTan);
-					mPathMatrix.reset();
-					mPathDegrees = (float) (Math.atan2(mPathTan[1], mPathTan[0]) * 180.0 / Math.PI);
-					mPathMatrix.postRotate(mPathDegrees, mPathBitmapOffsetX, mPathBitmapOffsetY);
-					mPathMatrix.postTranslate(mPathPos[0] - mPathBitmapOffsetX, mPathPos[1] - mPathBitmapOffsetY);
-					mDistanceMoved += mDistanceEachStep;
-				} else {
-					mDistanceMoved = 0;
 				}
 
 				arrVertex1.add( new Vertex(mMotionEventCurrentTouchedX, mMotionEventCurrentTouchedY) );
@@ -803,6 +791,14 @@ public class CustomGestureView extends AppCompatImageView {
 					return false;
 				}
 
+				// OutOfBoundException 방지
+				if ( arrVertex1.isEmpty() && arrVertex2.isEmpty() && arrVertex3.isEmpty() ) {
+					invalidate();// 뷰를 갱신
+					Toast.makeText(mContext, "OutOfBoundException 방지", Toast.LENGTH_SHORT).show();
+					return false;
+				}
+
+				//
 
 
 				arrVertex2.add(arrVertex1.get(0));
@@ -955,6 +951,12 @@ public class CustomGestureView extends AppCompatImageView {
 
 					mGesturePointerListener.onButtonEnabled(true);
 					Toast.makeText(mContext, "성공", Toast.LENGTH_SHORT).show();
+
+					// TEST
+					arrVertex1.clear();
+					arrVertex2.clear();
+					arrVertex3.clear();
+
 					return true;
 				} else {
 					initMotionTouchEvent();// 초기화
@@ -987,9 +989,9 @@ public class CustomGestureView extends AppCompatImageView {
 
 		return arrVertex1.size() > 85
 				&& arrVertex2.size() > 20
-				&& arrVertex3.size() > 10
+				&& arrVertex3.size() > 10;
 //							&& Math.abs( (int) (allAngle * sRtd) ) > 4 // 총 각도
-				&& allLength / arrVertex2.size() > 80; // 전체 길이
+//				&& allLength / arrVertex2.size() > 80; // 전체 길이
 	}
 
 	/**
