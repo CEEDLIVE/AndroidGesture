@@ -284,4 +284,4 @@ http://source.android.com/source/code-style.html#follow-field-naming-conventions
 - [Android 에서 Vector(벡터) 이미지 사용하기](https://developer88.tistory.com/151)
 - [[GitHub] hyunjun/bookmarks](https://github.com/hyunjun/bookmarks/blob/master/android.md)
 - [안드로이드의 새로운 레이아웃 탐구서](https://academy.realm.io/kr/posts/exploring-new-android-layouts/)
-- [안드로이드 기초 정리](http://softwarearchitect.kr/blog/664){: target="_blank"}
+- [안드로이드 기초 정리](http://softwarearchitect.kr/blog/664)
